@@ -14,7 +14,7 @@ This roadmap is intentionally staged. Later steps depend on evidence from earlie
 - [x] Add a replaceable AI-provider layer (protocol and mock implementation)
 - [x] Add basic tests and setup instructions
 - [x] Define and validate a structured host request/response contract (Protocol v1)
-- [ ] Add a real provider adapter only after selecting and documenting its credential and data-handling requirements
+- [x] AI Core 0.2: provider registry/factory, validated model and timeout configuration, optional OpenAI adapter, sanitized provider errors
 
 ## Phase 2 — Communication design
 - [ ] Compare possible calculator-to-host communication paths
@@ -42,3 +42,5 @@ This roadmap is intentionally staged. Later steps depend on evidence from earlie
 ## Working rule
 
 A milestone is not complete until its behavior has been tested and its limitations documented.
+
+AI Core 0.2 supports the OpenAI Responses API through `OPENAI_API_KEY`; the mock provider remains the offline default. See [the PC prototype guide](software/pc-prototype/README.md).

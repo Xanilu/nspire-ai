@@ -6,9 +6,9 @@ import argparse
 import logging
 
 from nspire_ai.config import Settings
-from nspire_ai.errors import ConfigurationError, NspireAIError
+from nspire_ai.errors import NspireAIError
 from nspire_ai.logging_config import configure_logging
-from nspire_ai.providers.mock import MockProvider
+from nspire_ai.providers.registry import create_provider
 
 
 def main() -> int:
@@ -19,11 +19,7 @@ def main() -> int:
     try:
         settings = Settings.from_env()
         configure_logging(settings.log_level)
-        if settings.provider != "mock":
-            raise ConfigurationError(
-                "Only the 'mock' provider is available in milestone 0.1."
-            )
-        response = MockProvider().generate(args.prompt)
+        response = create_provider(settings).generate(args.prompt)
         print(response.text)
         return 0
     except NspireAIError as exc:

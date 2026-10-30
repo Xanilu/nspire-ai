@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -28,6 +29,8 @@ class Settings:
     app_name: str = "NSPIRE AI"
     log_level: str = "INFO"
     provider: str = "mock"
+    model: str = "gpt-4.1-mini"
+    request_timeout: float = 30.0
     debug: bool = False
 
     @classmethod
@@ -42,9 +45,22 @@ class Settings:
         if not provider:
             raise ConfigurationError("NSPIRE_AI_PROVIDER cannot be empty.")
 
+        model = os.getenv("NSPIRE_AI_MODEL", "gpt-4.1-mini").strip()
+        if not model:
+            raise ConfigurationError("NSPIRE_AI_MODEL cannot be empty.")
+        timeout_raw = os.getenv("NSPIRE_AI_REQUEST_TIMEOUT", "30")
+        try:
+            request_timeout = float(timeout_raw)
+        except ValueError as exc:
+            raise ConfigurationError("NSPIRE_AI_REQUEST_TIMEOUT must be a positive number of seconds.") from exc
+        if not math.isfinite(request_timeout) or request_timeout <= 0:
+            raise ConfigurationError("NSPIRE_AI_REQUEST_TIMEOUT must be a positive number of seconds.")
+
         return cls(
             log_level=level,
             provider=provider,
+            model=model,
+            request_timeout=request_timeout,
             debug=_read_bool("NSPIRE_AI_DEBUG", False),
         )
 

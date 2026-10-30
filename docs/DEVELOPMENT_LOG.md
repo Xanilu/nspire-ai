@@ -26,6 +26,14 @@ A concise record of meaningful project decisions, experiments, and results.
 - **Results:** After review fixes, all 38 tests passed on Python 3.13.17. The CLI returned the expected mock response, the focused local transport end-to-end test passed, and a sentinel exception test confirmed that provider details are neither returned nor logged. `git diff --check` passed (Git emitted only line-ending normalization warnings).
 - **Open questions:** Timeouts, authentication, and concrete device/network adapters need a separately reviewed design.
 
+## 2026-10-30 — AI Core 0.2
+
+- **Goal:** Add an optional real provider without coupling the application core to a vendor.
+- **Changes:** Added provider registry/factory, model and positive finite timeout settings, and a synchronous OpenAI Responses API adapter using `httpx`. The API key is read from `OPENAI_API_KEY`; HTTP, timeout, network, and response errors are converted to safe provider errors. Mock remains the default. Added offline HTTP-mock coverage and setup/limitations documentation.
+- **Tests:** `.venv\Scripts\python.exe -m pytest -q`; CLI mock smoke test; CLI OpenAI-without-key check; `git diff --check`; full diff and Git status review.
+- **Results:** All 57 tests passed, including Protocol v1 and Transport Layer regression tests. Mock CLI smoke returned its expected response (exit 0); OpenAI without a key returned the safe configuration error (exit 2). `git diff --check` passed (Git emitted line-ending normalization warnings). No live OpenAI request was made.
+- **Open questions:** No streaming, retries, tools, or conversation state are implemented.
+
 ## 2026-10-30 — Repository foundation
 
 - Created the initial private repository structure.

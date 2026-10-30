@@ -58,7 +58,7 @@ nspire-ai/
 
 ## Getting started
 
-The milestone 0.1 foundation and setup instructions are in [software/pc-prototype/README.md](software/pc-prototype/README.md). It runs locally with a mock provider and makes no AI service calls.
+The PC prototype now includes AI Core 0.2: a provider-neutral registry and an optional OpenAI Responses API adapter. The mock provider remains the default and makes no network calls. Setup instructions are in [software/pc-prototype/README.md](software/pc-prototype/README.md).
 
 See [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current plan.
 

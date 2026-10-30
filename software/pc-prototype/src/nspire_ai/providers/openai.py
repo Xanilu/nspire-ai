@@ -1,0 +1,88 @@
+"""OpenAI Responses API adapter; provider-specific HTTP stays behind AIProvider."""
+
+from __future__ import annotations
+
+import os
+from typing import Any
+
+import httpx
+
+from nspire_ai.errors import ProviderError
+from nspire_ai.providers.base import ProviderResponse
+
+
+class OpenAIProvider:
+    """Synchronous OpenAI adapter using the official Responses API endpoint."""
+
+    def __init__(
+        self,
+        model: str = "gpt-4.1-mini",
+        timeout: float = 30.0,
+        *,
+        api_key: str | None = None,
+        client: httpx.Client | None = None,
+    ) -> None:
+        self._model = model
+        self._timeout = timeout
+        self._api_key = api_key if api_key is not None else os.getenv("OPENAI_API_KEY")
+        self._client = client
+
+    @property
+    def name(self) -> str:
+        return "openai"
+
+    def generate(self, prompt: str) -> ProviderResponse:
+        if not prompt.strip():
+            raise ProviderError("Prompt cannot be empty.")
+        if not self._api_key or not self._api_key.strip():
+            raise ProviderError("OpenAI API key is not configured.")
+
+        headers = {"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"}
+        body = {"model": self._model, "input": prompt}
+        owns_client = self._client is None
+        client = self._client or httpx.Client(timeout=self._timeout)
+        try:
+            response = client.post("https://api.openai.com/v1/responses", headers=headers, json=body)
+            response.raise_for_status()
+            payload = response.json()
+        except httpx.TimeoutException as exc:
+            raise ProviderError("OpenAI request timed out.") from exc
+        except httpx.HTTPStatusError as exc:
+            # Do not expose response bodies, which may contain user or account details.
+            raise ProviderError("OpenAI request failed.") from exc
+        except httpx.RequestError as exc:
+            raise ProviderError("OpenAI service is unavailable.") from exc
+        except ValueError as exc:
+            raise ProviderError("OpenAI returned an invalid response.") from exc
+        finally:
+            if owns_client:
+                client.close()
+
+        text = _extract_output_text(payload)
+        if not text.strip():
+            raise ProviderError("OpenAI returned an empty response.")
+        return ProviderResponse(text=text, provider=self.name)
+
+
+def _extract_output_text(payload: Any) -> str:
+    if (
+        not isinstance(payload, dict)
+        or payload.get("status") != "completed"
+        or not isinstance(payload.get("output"), list)
+    ):
+        raise ProviderError("OpenAI returned an invalid response.")
+    parts: list[str] = []
+    for item in payload["output"]:
+        if not isinstance(item, dict) or not isinstance(item.get("content", []), list):
+            raise ProviderError("OpenAI returned an invalid response.")
+        for content in item.get("content", []):
+            if not isinstance(content, dict):
+                raise ProviderError("OpenAI returned an invalid response.")
+            if content.get("type") == "output_text":
+                value = content.get("text")
+                if not isinstance(value, str):
+                    raise ProviderError("OpenAI returned an invalid response.")
+                parts.append(value)
+    if not parts:
+        raise ProviderError("OpenAI returned an invalid response.")
+    return "".join(parts)
