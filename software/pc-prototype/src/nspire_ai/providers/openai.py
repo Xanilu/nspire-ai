@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Sequence
 from typing import Any
 
 import httpx
 
 from nspire_ai.errors import ProviderError
+from nspire_ai.messages import Message, validate_provider_messages
 from nspire_ai.providers.base import ProviderResponse
 
 
@@ -37,8 +39,22 @@ class OpenAIProvider:
         if not self._api_key or not self._api_key.strip():
             raise ProviderError("OpenAI API key is not configured.")
 
+        return self._send_input(prompt)
+
+    def generate_messages(self, messages: Sequence[Message]) -> ProviderResponse:
+        """Send role-tagged conversation context using Responses API input messages."""
+        try:
+            validated = validate_provider_messages(messages)
+        except ValueError as exc:
+            raise ProviderError("Conversation context is invalid.") from exc
+        if not self._api_key or not self._api_key.strip():
+            raise ProviderError("OpenAI API key is not configured.")
+        payload = [{"role": message.role, "content": message.content} for message in validated]
+        return self._send_input(payload)
+
+    def _send_input(self, input_value: str | list[dict[str, str]]) -> ProviderResponse:
         headers = {"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"}
-        body = {"model": self._model, "input": prompt}
+        body = {"model": self._model, "input": input_value}
         owns_client = self._client is None
         client = self._client or httpx.Client(timeout=self._timeout)
         try:

@@ -34,6 +34,13 @@ A concise record of meaningful project decisions, experiments, and results.
 - **Results:** All 57 tests passed, including Protocol v1 and Transport Layer regression tests. Mock CLI smoke returned its expected response (exit 0); OpenAI without a key returned the safe configuration error (exit 2). `git diff --check` passed (Git emitted line-ending normalization warnings). No live OpenAI request was made.
 - **Open questions:** No streaming, retries, tools, or conversation state are implemented.
 
+## 2026-10-30 — AI Core 0.3
+
+- **Goal:** Add bounded multi-turn conversation management without changing Protocol v1, transport, or the existing one-shot CLI contract.
+- **Changes:** Added validated role-tagged messages, deterministic context building, an in-memory conversation store/engine, configured input/context/history/conversation limits, and role-aware Mock/OpenAI provider calls. Provider failures do not commit partial turns; legacy providers retain the original `generate(prompt)` path.
+- **Limits:** Conversations live only for the engine/process lifetime. Storage is capped by active conversation count and per-conversation history message and character limits. Context trimming removes oldest whole turns and never drops configured system context.
+- **Verification:** Full suite passed (81 tests). The mock CLI smoke returned its reply (exit 0); OpenAI CLI without `OPENAI_API_KEY` returned the generic configuration error (exit 2). `git diff --check` passed with only Git line-ending normalization warnings. A repository scan found no API-key-shaped secrets. No live OpenAI request was made.
+
 ## 2026-10-30 — Repository foundation
 
 - Created the initial private repository structure.

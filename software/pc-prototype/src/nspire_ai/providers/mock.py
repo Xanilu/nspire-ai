@@ -1,6 +1,7 @@
 """Local deterministic provider for smoke tests and offline development."""
 
 from nspire_ai.errors import ProviderError
+from nspire_ai.messages import Message, validate_provider_messages
 from nspire_ai.providers.base import ProviderResponse
 
 
@@ -15,3 +16,8 @@ class MockProvider:
         return ProviderResponse(
             text=f"Mock provider received: {prompt.strip()}", provider=self.name
         )
+
+    def generate_messages(self, messages: tuple[Message, ...]) -> ProviderResponse:
+        validated = validate_provider_messages(messages)
+        latest_user_message = next(message for message in reversed(validated) if message.role == "user")
+        return self.generate(latest_user_message.content)

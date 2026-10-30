@@ -1,7 +1,10 @@
+import json
+
 import httpx
 import pytest
 
 from nspire_ai.errors import ProviderError
+from nspire_ai.messages import Message
 from nspire_ai.providers.openai import OpenAIProvider
 
 
@@ -29,6 +32,34 @@ def test_openai_request_and_response_parsing():
     assert '"input":"question"' in seen["body"]
     assert result.text == "Hello"
     assert result.provider == "openai"
+
+
+def test_openai_conversation_context_maps_system_and_turn_roles():
+    seen = {}
+
+    def handler(request):
+        seen["body"] = json.loads(request.read())
+        return httpx.Response(200, json={"status": "completed", "output": [{"content": [{"type": "output_text", "text": "answer"}]}]})
+
+    client = make_client(handler)
+    try:
+        result = OpenAIProvider(api_key="test", client=client).generate_messages(
+            (
+                Message("system", "Follow rules"),
+                Message("user", "first"),
+                Message("assistant", "reply"),
+                Message("user", "next"),
+            )
+        )
+    finally:
+        client.close()
+    assert seen["body"]["input"] == [
+        {"role": "system", "content": "Follow rules"},
+        {"role": "user", "content": "first"},
+        {"role": "assistant", "content": "reply"},
+        {"role": "user", "content": "next"},
+    ]
+    assert result.text == "answer"
 
 
 def test_api_key_is_read_from_environment_and_not_in_errors(monkeypatch, caplog):

@@ -1,7 +1,17 @@
 """Provider-neutral foundation for the NSPIRE AI PC prototype."""
 
 from nspire_ai.config import Settings
-from nspire_ai.errors import ConfigurationError, ProviderError, NspireAIError
+from nspire_ai.conversations import ConversationEngine, create_conversation_engine
+from nspire_ai.errors import (
+    ConfigurationError,
+    ContextLimitError,
+    ConversationError,
+    ConversationNotFoundError,
+    ConversationProviderError,
+    ProviderError,
+    NspireAIError,
+)
+from nspire_ai.messages import Message
 from nspire_ai.providers.base import AIProvider, ProviderResponse
 from nspire_ai.protocol import (
     PROTOCOL_VERSION,
@@ -13,7 +23,13 @@ from nspire_ai.protocol import (
 __all__ = [
     "AIProvider",
     "ConfigurationError",
+    "ContextLimitError",
+    "ConversationEngine",
+    "ConversationError",
+    "ConversationNotFoundError",
+    "ConversationProviderError",
     "NspireAIError",
+    "Message",
     "ProviderError",
     "ProviderResponse",
     "PROTOCOL_VERSION",
@@ -21,4 +37,5 @@ __all__ = [
     "ProtocolResponse",
     "ProtocolValidationError",
     "Settings",
+    "create_conversation_engine",
 ]

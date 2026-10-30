@@ -15,6 +15,7 @@ This roadmap is intentionally staged. Later steps depend on evidence from earlie
 - [x] Add basic tests and setup instructions
 - [x] Define and validate a structured host request/response contract (Protocol v1)
 - [x] AI Core 0.2: provider registry/factory, validated model and timeout configuration, optional OpenAI adapter, sanitized provider errors
+- [x] AI Core 0.3: bounded in-memory conversations, message history, deterministic provider context mapping
 
 ## Phase 2 — Communication design
 - [ ] Compare possible calculator-to-host communication paths
@@ -44,3 +45,5 @@ This roadmap is intentionally staged. Later steps depend on evidence from earlie
 A milestone is not complete until its behavior has been tested and its limitations documented.
 
 AI Core 0.2 supports the OpenAI Responses API through `OPENAI_API_KEY`; the mock provider remains the offline default. See [the PC prototype guide](software/pc-prototype/README.md).
+
+AI Core 0.3 conversation data exists only for the lifetime of its in-memory engine instance. See [the conversation API and limits](software/pc-prototype/README.md#conversations).
