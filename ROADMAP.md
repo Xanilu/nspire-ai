@@ -4,14 +4,17 @@ This roadmap is intentionally staged. Later steps depend on evidence from earlie
 
 ## Phase 0 — Project foundation
 - [x] Create private repository
-- [ ] Establish documentation and contribution conventions
-- [ ] Define the first prototype's scope
+- [x] Establish documentation and contribution conventions
+- [x] Define the first prototype's scope
+- [x] Implement milestone 0.1 PC package foundation (settings, logging, errors, provider protocol, mock provider, CLI, tests)
 
 ## Phase 1 — PC prototype
-- [ ] Choose a simple, maintainable implementation stack
-- [ ] Build a minimal request/response interface
-- [ ] Add a replaceable AI-provider layer
-- [ ] Add basic tests and setup instructions
+- [x] Choose a simple, maintainable implementation stack (Python 3.13, standard library runtime)
+- [x] Build a minimal local request/response smoke-test interface
+- [x] Add a replaceable AI-provider layer (protocol and mock implementation)
+- [x] Add basic tests and setup instructions
+- [x] Define and validate a structured host request/response contract (Protocol v1)
+- [ ] Add a real provider adapter only after selecting and documenting its credential and data-handling requirements
 
 ## Phase 2 — Communication design
 - [ ] Compare possible calculator-to-host communication paths

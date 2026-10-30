@@ -2,7 +2,7 @@
 
 ## Status
 
-This document describes the intended direction. It is a design hypothesis, not a record of a fully working system.
+The system described here remains a design direction, with the milestone 0.1 PC foundation implemented under `software/pc-prototype`. That foundation includes a provider-neutral interface and a local mock provider; it does not yet connect to an AI service or calculator.
 
 ## Core idea
 
@@ -17,25 +17,14 @@ A lightweight Ndless application may eventually handle input, display, and messa
 A transport adapter moves structured requests and responses between the calculator and the external host. The protocol should remain independent of the physical transport so that alternatives can be tested.
 
 ### 3. Host application
-The host receives requests, validates them, routes tasks, and returns formatted results. The first implementation will run on a PC to simplify development and debugging.
+The host receives requests, validates them, routes tasks, and returns formatted results. The first implementation runs as a minimal local CLI on a PC.
 
 ### 4. AI engine
-The AI engine exposes a provider-neutral interface for model calls and task-specific behavior. API credentials must remain on the host and must never be embedded in calculator files or committed to Git.
+The PC foundation exposes a provider-neutral `AIProvider` protocol and `ProviderResponse` type. The mock implementation is deterministic and offline. Later adapters can connect to local or cloud models; API credentials must remain on the host, must never be embedded in calculator files or committed to Git, and must not be logged.
 
-## Initial message shape
+## Protocol
 
-A first protocol can use a small structured envelope:
-
-```json
-{
-  "version": 1,
-  "request_id": "example-001",
-  "task": "explain",
-  "input": "Explain Newton's second law."
-}
-```
-
-The response should carry the same request identifier, a status, and a text result. The final schema will be specified alongside the first implementation.
+Protocol v1 defines provider- and transport-neutral JSON request and response envelopes. Requests carry `protocol_version`, `request_id`, `input`, and optional metadata. Responses echo the version and request ID and carry a status and text, with structured error details on failures. The schema and compatibility rules are specified in [PROTOCOL_V1.md](PROTOCOL_V1.md); the Python reference implementation lives in `nspire_ai.protocol`.
 
 ## Constraints and open questions
 

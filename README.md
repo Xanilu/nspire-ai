@@ -39,9 +39,9 @@ This is a conceptual direction, not a claim that a particular wireless or calcul
 nspire-ai/
 ├── docs/                  # Architecture, research, and development notes
 ├── software/
-│   ├── pc-prototype/      # First runnable prototype
-│   ├── ai-engine/         # AI provider and task orchestration
-│   └── communication/     # Host-side communication interfaces
+│   ├── pc-prototype/      # First runnable prototype foundation
+│   ├── ai-engine/         # Future AI provider and task orchestration
+│   └── communication/     # Future host-side communication interfaces
 ├── calculator/
 │   └── ndless-client/     # Future TI-Nspire client
 └── hardware/
@@ -58,7 +58,7 @@ nspire-ai/
 
 ## Getting started
 
-There is no runnable application yet. The initial milestone is to define and implement a small PC prototype with a clear request/response interface.
+The milestone 0.1 foundation and setup instructions are in [software/pc-prototype/README.md](software/pc-prototype/README.md). It runs locally with a mock provider and makes no AI service calls.
 
 See [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current plan.
 
