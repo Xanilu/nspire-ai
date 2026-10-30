@@ -14,10 +14,10 @@ The TI-Nspire CX II should provide the user interface and input experience. More
 A lightweight Ndless application may eventually handle input, display, and message exchange. Exact APIs and compatibility must be verified on the target calculator and OS version.
 
 ### 2. Communication layer
-A transport adapter moves structured requests and responses between the calculator and the external host. The protocol should remain independent of the physical transport so that alternatives can be tested.
+A transport adapter moves structured requests and responses between the calculator and the external host. Protocol v1 framing is implemented for blocking binary streams with a bounded four-byte length prefix; it remains independent of the physical transport. See [TRANSPORT_LAYER_V0_1.md](TRANSPORT_LAYER_V0_1.md). No remote or calculator transport is implemented.
 
 ### 3. Host application
-The host receives requests, validates them, routes tasks, and returns formatted results. The first implementation runs as a minimal local CLI on a PC.
+The host receives requests, validates them, routes tasks, and returns formatted results. The PC foundation includes a minimal local CLI and a stream request handler that can invoke the application core.
 
 ### 4. AI engine
 The PC foundation exposes a provider-neutral `AIProvider` protocol and `ProviderResponse` type. The mock implementation is deterministic and offline. Later adapters can connect to local or cloud models; API credentials must remain on the host, must never be embedded in calculator files or committed to Git, and must not be logged.

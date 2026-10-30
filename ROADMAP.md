@@ -18,8 +18,8 @@ This roadmap is intentionally staged. Later steps depend on evidence from earlie
 
 ## Phase 2 — Communication design
 - [ ] Compare possible calculator-to-host communication paths
-- [ ] Define a transport-independent message format
-- [ ] Prototype the chosen transport between PC components
+- [x] Define a transport-independent message format (Protocol v1)
+- [x] Prototype framed local stream exchange between PC components (Transport Layer 0.1)
 - [ ] Document latency, reliability, and security constraints
 
 ## Phase 3 — Calculator client
