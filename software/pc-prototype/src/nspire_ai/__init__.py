@@ -8,11 +8,15 @@ from nspire_ai.errors import (
     ConversationError,
     ConversationNotFoundError,
     ConversationProviderError,
+    ConversationStorageConflictError,
+    ConversationStorageCorruptionError,
+    ConversationStorageError,
     ProviderError,
     NspireAIError,
 )
 from nspire_ai.messages import Message
 from nspire_ai.providers.base import AIProvider, ProviderResponse
+from nspire_ai.storage import ConversationSummary
 from nspire_ai.protocol import (
     PROTOCOL_VERSION,
     ProtocolRequest,
@@ -28,6 +32,10 @@ __all__ = [
     "ConversationError",
     "ConversationNotFoundError",
     "ConversationProviderError",
+    "ConversationStorageConflictError",
+    "ConversationStorageCorruptionError",
+    "ConversationStorageError",
+    "ConversationSummary",
     "NspireAIError",
     "Message",
     "ProviderError",

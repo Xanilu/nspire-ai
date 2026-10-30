@@ -1,6 +1,9 @@
+from pathlib import Path
+
 import pytest
 
 from nspire_ai.config import Settings
+from nspire_ai.config import _default_data_directory
 from nspire_ai.errors import ConfigurationError
 
 
@@ -19,6 +22,8 @@ def clear_config_environment(monkeypatch):
         "NSPIRE_AI_MAX_HISTORY_MESSAGES",
         "NSPIRE_AI_MAX_HISTORY_CHARS",
         "NSPIRE_AI_MAX_CONVERSATIONS",
+        "NSPIRE_AI_PERSISTENCE",
+        "NSPIRE_AI_DATA_DIR",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -44,6 +49,8 @@ def test_defaults_are_safe(monkeypatch):
     assert settings.model == "gpt-4.1-mini"
     assert settings.request_timeout == 30.0
     assert settings.max_history_chars == 100_000
+    assert settings.persistence_enabled is True
+    assert settings.data_dir is None
 
 
 def test_environment_values_are_normalized(monkeypatch):
@@ -149,3 +156,30 @@ def test_single_message_limit_is_valid_without_system_context(monkeypatch):
 
     assert settings.system_context == ""
     assert settings.max_context_messages == 1
+
+
+def test_persistence_and_explicit_data_directory_are_configurable(monkeypatch, tmp_path):
+    monkeypatch.setenv("NSPIRE_AI_PERSISTENCE", "false")
+    monkeypatch.setenv("NSPIRE_AI_DATA_DIR", str(tmp_path))
+    settings = Settings.from_env()
+    assert settings.persistence_enabled is False
+    assert settings.storage_directory == tmp_path
+
+
+def test_invalid_data_directory_configuration_fails_early(monkeypatch, tmp_path):
+    file_path = tmp_path / "file"
+    file_path.write_text("x")
+    monkeypatch.setenv("NSPIRE_AI_DATA_DIR", str(file_path))
+    with pytest.raises(ConfigurationError, match="must point to a directory"):
+        Settings.from_env()
+    monkeypatch.setenv("NSPIRE_AI_DATA_DIR", "  ")
+    with pytest.raises(ConfigurationError, match="valid non-empty"):
+        Settings.from_env()
+
+
+def test_platform_default_storage_paths():
+    home = Path("/home/example")
+    assert _default_data_directory("nt", "win32", {"LOCALAPPDATA": r"C:\Users\example\AppData\Local"}, home) == Path(r"C:\Users\example\AppData\Local") / "NSPIRE AI"
+    assert _default_data_directory("posix", "darwin", {}, home) == home / "Library" / "Application Support" / "NSPIRE AI"
+    assert _default_data_directory("posix", "linux", {"XDG_DATA_HOME": "/tmp/data"}, home) == Path("/tmp/data") / "nspire-ai"
+    assert _default_data_directory("posix", "linux", {}, home) == home / ".local" / "share" / "nspire-ai"

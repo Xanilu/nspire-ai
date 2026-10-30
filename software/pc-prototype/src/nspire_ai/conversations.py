@@ -1,68 +1,30 @@
-"""In-memory conversation lifecycle and provider orchestration."""
+"""Conversation lifecycle and provider orchestration."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from contextlib import contextmanager
+from pathlib import Path
 from threading import Lock, RLock
-from uuid import uuid4
+from typing import Iterator
 
 from nspire_ai.config import Settings
 from nspire_ai.context import ContextManager
 from nspire_ai.errors import (
+    ContextLimitError,
     ConversationNotFoundError,
     ConversationProviderError,
-    ContextLimitError,
+    ConversationStorageError,
 )
 from nspire_ai.messages import Message
 from nspire_ai.providers.base import AIProvider, ProviderResponse
 from nspire_ai.providers.registry import create_provider
-
-
-@dataclass(slots=True)
-class _Conversation:
-    messages: list[Message] = field(default_factory=list)
-    lock: Lock = field(default_factory=Lock)
-
-
-class InMemoryConversationStore:
-    """Process-local store; contents disappear when the process exits."""
-
-    def __init__(self, *, max_conversations: int = 1_000) -> None:
-        if type(max_conversations) is not int or max_conversations < 1:
-            raise ValueError("Maximum conversations must be a positive integer.")
-        self._max_conversations = max_conversations
-        self._items: dict[str, _Conversation] = {}
-        self._lock = RLock()
-
-    def create(self) -> str:
-        with self._lock:
-            if len(self._items) >= self._max_conversations:
-                raise ContextLimitError("The in-memory conversation limit has been reached.")
-            conversation_id = uuid4().hex
-            self._items[conversation_id] = _Conversation()
-            return conversation_id
-
-    def get(self, conversation_id: str) -> _Conversation:
-        if not isinstance(conversation_id, str) or not conversation_id:
-            raise ConversationNotFoundError("Conversation was not found.")
-        with self._lock:
-            conversation = self._items.get(conversation_id)
-        if conversation is None:
-            raise ConversationNotFoundError("Conversation was not found.")
-        return conversation
-
-    def ensure_current(self, conversation_id: str, conversation: _Conversation) -> None:
-        with self._lock:
-            if self._items.get(conversation_id) is not conversation:
-                raise ConversationNotFoundError("Conversation was not found.")
-
-    def delete(self, conversation_id: str) -> None:
-        conversation = self.get(conversation_id)
-        with conversation.lock:
-            with self._lock:
-                if self._items.get(conversation_id) is not conversation:
-                    raise ConversationNotFoundError("Conversation was not found.")
-                del self._items[conversation_id]
+from nspire_ai.storage import (
+    ConversationStore,
+    ConversationSummary,
+    InMemoryConversationStore,
+    SQLiteConversationStore,
+    validate_conversation_id,
+)
 
 
 class ConversationEngine:
@@ -79,6 +41,7 @@ class ConversationEngine:
         max_history_messages: int = 200,
         max_history_chars: int = 100_000,
         max_conversations: int = 1_000,
+        store: ConversationStore | None = None,
     ) -> None:
         if type(max_input_chars) is not int or max_input_chars < 1:
             raise ValueError("Maximum input characters must be a positive integer.")
@@ -90,39 +53,71 @@ class ConversationEngine:
         self._max_input_chars = max_input_chars
         self._max_history_messages = max_history_messages
         self._max_history_chars = max_history_chars
-        self._store = InMemoryConversationStore(max_conversations=max_conversations)
+        self._store = store or InMemoryConversationStore(max_conversations=max_conversations)
         self._context = ContextManager(
             system_context=system_context,
             max_context_chars=max_context_chars,
             max_context_messages=max_context_messages,
         )
+        self._locks: dict[str, Lock] = {}
+        self._locks_guard = RLock()
+        self._closed = False
+
+    def _conversation_lock(self, conversation_id: str) -> Lock:
+        conversation_id = validate_conversation_id(conversation_id)
+        with self._locks_guard:
+            return self._locks.setdefault(conversation_id, Lock())
+
+    @contextmanager
+    def _locked_conversation(self, conversation_id: str) -> Iterator[str]:
+        conversation_id = validate_conversation_id(conversation_id)
+        lock = self._conversation_lock(conversation_id)
+        try:
+            with lock:
+                yield conversation_id
+        except ConversationNotFoundError:
+            with self._locks_guard:
+                if self._locks.get(conversation_id) is lock:
+                    self._locks.pop(conversation_id, None)
+            raise
 
     def create_conversation(self) -> str:
-        """Create and return a new opaque conversation ID."""
-        return self._store.create()
+        """Create and persist an empty conversation, returning its opaque ID."""
+        self._ensure_open()
+        conversation_id = self._store.create()
+        self._conversation_lock(conversation_id)
+        return conversation_id
 
     def get_history(self, conversation_id: str) -> tuple[Message, ...]:
-        """Return a snapshot of the retained user/assistant message history."""
-        conversation = self._store.get(conversation_id)
-        with conversation.lock:
-            self._store.ensure_current(conversation_id, conversation)
-            return tuple(conversation.messages)
+        """Return a validated snapshot of retained user/assistant history."""
+        self._ensure_open()
+        with self._locked_conversation(conversation_id) as valid_id:
+            return self._store.load(valid_id).messages
+
+    def list_conversations(self) -> tuple[ConversationSummary, ...]:
+        """List conversation metadata, newest activity first."""
+        self._ensure_open()
+        return self._store.list()
 
     def delete_conversation(self, conversation_id: str) -> None:
-        """Delete a conversation and its retained history."""
-        self._store.delete(conversation_id)
+        """Logically delete a conversation and its messages."""
+        self._ensure_open()
+        with self._locked_conversation(conversation_id) as valid_id:
+            self._store.delete(valid_id)
+        with self._locks_guard:
+            self._locks.pop(conversation_id, None)
 
     def send_message(self, conversation_id: str, content: str) -> Message:
-        """Submit user text and append the turn only after a valid provider reply."""
+        """Submit user text and atomically append the turn after a valid reply."""
+        self._ensure_open()
         if not isinstance(content, str) or not content.strip():
             raise ValueError("Message cannot be empty.")
         if len(content) > self._max_input_chars:
             raise ValueError("Message exceeds the configured input length limit.")
 
-        conversation = self._store.get(conversation_id)
-        with conversation.lock:
-            self._store.ensure_current(conversation_id, conversation)
-            context = self._context.build(conversation.messages, content)
+        with self._locked_conversation(conversation_id) as valid_id:
+            snapshot = self._store.load(valid_id)
+            context = self._context.build(snapshot.messages, content)
             try:
                 result = self._generate(context)
             except Exception:
@@ -139,16 +134,44 @@ class ConversationEngine:
 
             user_message = Message("user", content)
             assistant_message = Message("assistant", result.text)
-            turn_chars = len(user_message.content) + len(assistant_message.content)
-            if turn_chars > self._max_history_chars:
+            if len(user_message.content) + len(assistant_message.content) > self._max_history_chars:
                 raise ContextLimitError("The completed turn exceeds the stored history limit.")
-            conversation.messages.extend((user_message, assistant_message))
-            while (
-                len(conversation.messages) > self._max_history_messages
-                or sum(len(message.content) for message in conversation.messages) > self._max_history_chars
-            ):
-                del conversation.messages[:2]
+            self._store.commit_turn(
+                valid_id,
+                snapshot.revision,
+                user_message,
+                assistant_message,
+                max_history_messages=self._max_history_messages,
+                max_history_chars=self._max_history_chars,
+            )
             return assistant_message
+
+    def backup(self, destination: str | Path) -> str:
+        """Create a consistent SQLite backup at a new destination path."""
+        self._ensure_open()
+        return str(self._store.backup(destination))
+
+    def restore_backup(self, source: str | Path) -> None:
+        """Restore a validated backup only when this storage has no conversations."""
+        self._ensure_open()
+        self._store.restore_backup(source)
+
+    def close(self) -> None:
+        """Close storage; subsequent engine operations fail clearly."""
+        if not self._closed:
+            self._store.close()
+            self._closed = True
+
+    def __enter__(self) -> "ConversationEngine":
+        self._ensure_open()
+        return self
+
+    def __exit__(self, exc_type, exc, traceback) -> None:
+        self.close()
+
+    def _ensure_open(self) -> None:
+        if self._closed:
+            raise ConversationStorageError("Conversation engine is closed.")
 
     def _generate(self, messages: tuple[Message, ...]) -> ProviderResponse:
         generate_messages = getattr(self._provider, "generate_messages", None)
@@ -163,8 +186,24 @@ def create_conversation_engine(
     settings: Settings,
     *,
     provider: AIProvider | None = None,
+    persistence_enabled: bool | None = None,
 ) -> ConversationEngine:
-    """Build an engine using the configured provider and conversation limits."""
+    """Build an engine using configured provider, limits, and durable storage."""
+    if persistence_enabled is not None and type(persistence_enabled) is not bool:
+        raise ValueError("Persistence option must be a boolean.")
+    persistent = settings.persistence_enabled if persistence_enabled is None else persistence_enabled
+    if type(persistent) is not bool:
+        raise ValueError("Persistence setting must be a boolean.")
+    store: ConversationStore
+    if persistent:
+        store = SQLiteConversationStore(
+            settings.storage_directory,
+            max_conversations=settings.max_conversations,
+            max_history_messages=settings.max_history_messages,
+            max_history_chars=settings.max_history_chars,
+        )
+    else:
+        store = InMemoryConversationStore(max_conversations=settings.max_conversations)
     return ConversationEngine(
         provider if provider is not None else create_provider(settings),
         system_context=settings.system_context,
@@ -174,4 +213,5 @@ def create_conversation_engine(
         max_history_messages=settings.max_history_messages,
         max_history_chars=settings.max_history_chars,
         max_conversations=settings.max_conversations,
+        store=store,
     )

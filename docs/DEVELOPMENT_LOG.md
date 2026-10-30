@@ -2,6 +2,14 @@
 
 A concise record of meaningful project decisions, experiments, and results.
 
+## 2026-10-30 — AI Core 0.4
+
+- **Goal:** Add durable local conversation storage and safe session management without changing provider, CLI, Protocol v1, or transport contracts.
+- **Changes:** Added a provider-neutral conversation store interface, retained the in-memory backend for direct engine construction, and made the engine factory use versioned SQLite storage by default. Added conversation listing, validated restoration, revision-checked atomic turn commits, logical deletion, engine close/context-manager behavior, consistent SQLite backup and empty-store restore APIs, OS-specific data-directory configuration, restrictive POSIX file permissions, and storage domain errors. Review fixes add per-database cross-process operation locks, strict v1 schema validation, and deterministic backup concurrency coverage. Updated architecture, setup, privacy, and recovery documentation.
+- **Tests:** `.venv\Scripts\python.exe -m pytest`; mock CLI smoke test; OpenAI CLI without an API key; `git diff --check`.
+- **Results:** 113 tests passed and one POSIX-permissions test was skipped on Windows. Coverage includes restart persistence, cross-process restore serialization, strict schema rejection, WAL backup/restore during an active writer, revision conflicts, rollback of incomplete turns, migration/error handling, path configuration, and existing Protocol v1/transport/provider regressions. Mock CLI smoke returned the expected response. OpenAI CLI without a key returned the existing safe configuration error (exit 2); no live request was made. `git diff --check` and new-file whitespace checks passed with only Git line-ending normalization warnings. No files were staged or committed.
+- **Limitations:** SQLite data and backups are plaintext. Logical deletion is not forensic erasure. Restore requires an empty target; a per-database OS lock serializes local storage operations across processes. Corruption is detected and preserved for manual recovery; automatic salvage and encryption remain out of scope.
+
 ## 2026-10-30 — PC prototype foundation 0.1
 
 - **Goal:** Establish a small, provider-neutral Python foundation for local PC development.

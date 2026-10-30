@@ -16,6 +16,7 @@ This roadmap is intentionally staged. Later steps depend on evidence from earlie
 - [x] Define and validate a structured host request/response contract (Protocol v1)
 - [x] AI Core 0.2: provider registry/factory, validated model and timeout configuration, optional OpenAI adapter, sanitized provider errors
 - [x] AI Core 0.3: bounded in-memory conversations, message history, deterministic provider context mapping
+- [x] AI Core 0.4: SQLite persistence, session listing, transactional turns, optimistic concurrency, and backup/restore
 
 ## Phase 2 — Communication design
 - [ ] Compare possible calculator-to-host communication paths

@@ -27,3 +27,15 @@ class ConversationProviderError(ConversationError):
 
 class ContextLimitError(ConversationError):
     """Raised when required context does not fit configured limits."""
+
+
+class ConversationStorageError(ConversationError):
+    """Raised when conversation storage cannot safely complete an operation."""
+
+
+class ConversationStorageCorruptionError(ConversationStorageError):
+    """Raised when persisted conversation data fails integrity or validation checks."""
+
+
+class ConversationStorageConflictError(ConversationStorageError):
+    """Raised when another engine changed a conversation during provider execution."""

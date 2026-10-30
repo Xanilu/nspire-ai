@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import math
 import os
+import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -50,6 +52,8 @@ class Settings:
     max_history_messages: int = 200
     max_history_chars: int = 100_000
     max_conversations: int = 1_000
+    persistence_enabled: bool = True
+    data_dir: Path | None = None
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -81,6 +85,19 @@ class Settings:
         max_history_messages = _read_positive_int("NSPIRE_AI_MAX_HISTORY_MESSAGES", 200)
         max_history_chars = _read_positive_int("NSPIRE_AI_MAX_HISTORY_CHARS", 100_000)
         max_conversations = _read_positive_int("NSPIRE_AI_MAX_CONVERSATIONS", 1_000)
+        persistence_enabled = _read_bool("NSPIRE_AI_PERSISTENCE", True)
+        data_dir_raw = os.getenv("NSPIRE_AI_DATA_DIR")
+        if data_dir_raw is not None:
+            if not data_dir_raw.strip() or "\x00" in data_dir_raw:
+                raise ConfigurationError("NSPIRE_AI_DATA_DIR must be a valid non-empty directory path.")
+            try:
+                data_dir = Path(data_dir_raw).expanduser()
+                if data_dir.exists() and not data_dir.is_dir():
+                    raise ConfigurationError("NSPIRE_AI_DATA_DIR must point to a directory.")
+            except (OSError, ValueError):
+                raise ConfigurationError("NSPIRE_AI_DATA_DIR could not be accessed.") from None
+        else:
+            data_dir = None
         if max_history_messages < 2 or max_history_messages % 2:
             raise ConfigurationError("NSPIRE_AI_MAX_HISTORY_MESSAGES must be an even integer of at least two.")
         if system_context and max_context_messages < 2:
@@ -103,8 +120,33 @@ class Settings:
             max_history_messages=max_history_messages,
             max_history_chars=max_history_chars,
             max_conversations=max_conversations,
+            persistence_enabled=persistence_enabled,
+            data_dir=data_dir,
         )
+
+    @staticmethod
+    def default_data_directory() -> Path:
+        """Return the OS-appropriate private application data directory."""
+        return _default_data_directory(os.name, sys.platform, os.environ, Path.home())
+
+    @property
+    def storage_directory(self) -> Path:
+        return self.data_dir if self.data_dir is not None else self.default_data_directory()
 
     @staticmethod
     def project_root() -> Path:
         return Path(__file__).resolve().parents[2]
+
+
+def _default_data_directory(
+    os_name: str, platform_name: str, environ: Mapping[str, str], home: Path
+) -> Path:
+    if os_name == "nt":
+        local_app_data = environ.get("LOCALAPPDATA")
+        if local_app_data:
+            return Path(local_app_data) / "NSPIRE AI"
+        return home / "AppData" / "Local" / "NSPIRE AI"
+    if platform_name == "darwin":
+        return home / "Library" / "Application Support" / "NSPIRE AI"
+    xdg_data_home = environ.get("XDG_DATA_HOME")
+    return (Path(xdg_data_home).expanduser() if xdg_data_home else home / ".local" / "share") / "nspire-ai"
