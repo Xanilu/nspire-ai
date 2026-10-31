@@ -27,11 +27,11 @@
   <path d="M439 310v70" class="line"/>
   <rect x="697" y="397" width="416" height="68" rx="13" class="future"/>
   <text x="720" y="427" class="label">Physical / network transport</text><text x="720" y="450" class="detail">unselected · feasibility unverified</text>
-  <rect x="832" y="183" width="280" height="120" rx="16" class="future"/>
-  <text x="855" y="219" class="tag" fill="#d99b55">FUTURE · NOT IMPLEMENTED</text>
-  <text x="855" y="251" class="label">TI‑Nspire CX II client</text><text x="855" y="277" class="detail">Ndless / OS compatibility unknown</text>
-  <path d="M832 264h-22v162h-145" class="futureLine"/>
-  <path d="M974 303v83" class="futureLine"/>
+  <rect x="872" y="183" width="280" height="120" rx="16" class="future"/>
+  <text x="891" y="219" class="tag" fill="#d99b55">FUTURE · NOT IMPLEMENTED</text>
+  <text x="891" y="251" class="label">TI‑Nspire CX II client</text><text x="891" y="277" class="detail">Ndless / OS compatibility unknown</text>
+  <path d="M1012 303v83" class="futureLine"/>
+  <path d="M697 431h-40" class="futureLine"/>
   <text x="48" y="558" class="tag" fill="#53cdbb">SOLID PATH · EXISTS AND IS TESTED ON PC</text>
   <text x="48" y="589" class="tag" fill="#d99b55">DASHED PATH · RESEARCH DIRECTION, NO DEVICE CONNECTION</text>
   <text x="48" y="625" class="detail">No calculator, phone, or external hardware connection is part of the current implementation.</text>
