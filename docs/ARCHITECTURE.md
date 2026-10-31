@@ -2,7 +2,7 @@
 
 ## Status
 
-The calculator-facing system remains a design direction. The software-first PC foundation is implemented under `software/pc-prototype`; AI Core 0.7 adds sanitized provider failure categories and explicit incomplete-stream signaling over bounded local SQLite conversations. No calculator client, phone integration, or external device connection is implemented.
+The calculator-facing system remains a design direction. The software-first PC foundation is implemented under `software/pc-prototype`; current milestone is AI Core 0.7 Phase 0 + 1. The verified Windows suite has 150 passing tests and one platform-specific POSIX-permissions skip. No calculator client, phone integration, or external device connection is implemented. See the [architecture overview](assets/architecture-overview.svg) for the implementation boundary and [Engineering Journey](ENGINEERING_JOURNEY.md) for evidence-backed case studies.
 
 ## Core idea
 
@@ -10,16 +10,16 @@ The TI-Nspire CX II should provide the user interface and input experience. More
 
 ## Logical components
 
-### 1. Calculator client
-A lightweight Ndless application may eventually handle input, display, and message exchange. Exact APIs and compatibility must be verified on the target calculator and OS version.
+### 1. Calculator client — future, not implemented
+A lightweight Ndless application may eventually handle input, display, and message exchange. Exact APIs and compatibility must be verified on the target calculator and OS version. There is no calculator-side code in this repository.
 
-### 2. Communication layer
+### 2. Communication layer — local software only
 A transport adapter moves structured requests and responses between the calculator and the external host. Protocol v1 framing is implemented for blocking binary streams with a bounded four-byte length prefix; it remains independent of the physical transport. See [TRANSPORT_LAYER_V0_1.md](TRANSPORT_LAYER_V0_1.md). No remote or calculator transport is implemented.
 
-### 3. Host application
+### 3. Host application — PC prototype implemented
 The host receives requests, validates them, routes tasks, and returns formatted results. The PC foundation includes a minimal local CLI and a stream request handler that can invoke the application core.
 
-### 4. AI engine
+### 4. AI engine — PC prototype implemented
 The PC foundation exposes a provider-neutral `AIProvider` protocol and `ProviderResponse` type. An optional streaming capability preserves compatibility with existing providers; providers without it use a one-shot fallback. OpenAI uses the Responses API SSE stream and yields text deltas. `ConversationEngine.stream_message` snapshots history under the per-conversation lock, then streams without holding the lock; it enforces output and chunk bounds and commits only after successful completion with a revision check. Closing early or any provider/validation/storage failure leaves history unchanged. Provider errors carry stable internal categories without raw HTTP bodies or exception details. The CLI labels emitted fragments as incomplete if a stream fails or is interrupted; the turn remains uncommitted. Synchronous HTTP uses the configured `httpx` timeout for connect, pool, write, and each individual read wait, including idle time between fragments. This is not an overall stream wall-clock deadline; a continuously active stream can exceed the configured value. Output limits use `NSPIRE_AI_MAX_STREAM_CHARS` (24,000) and `NSPIRE_AI_MAX_STREAM_CHUNK_CHARS` (4,096). Automatic provider retries are disabled. Protocol v1, SQLite schema v1, and transport contracts remain unchanged. See the [PC prototype guide](../software/pc-prototype/README.md) for setup, backup/restore, streaming and limits.
 
 ## Protocol

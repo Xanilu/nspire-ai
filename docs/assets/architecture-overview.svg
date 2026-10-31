@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="650" viewBox="0 0 1200 650" role="img" aria-labelledby="title desc">
+  <title id="title">NSPIRE AI: current PC prototype and future calculator direction</title>
+  <desc id="desc">Solid teal boxes show implemented PC software: CLI, conversation engine, provider, SQLite store and local protocol stream handler. Dashed amber boxes show a future calculator client and a physical transport that have not been implemented.</desc>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#53cdbb"/></marker>
+    <marker id="futureArrow" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0L10 5L0 10z" fill="#d99b55"/></marker>
+    <style>
+      .head{font:700 27px 'Segoe UI',Arial,sans-serif;fill:#f3f7fb}.sub{font:15px 'Segoe UI',Arial,sans-serif;fill:#a9b8c9}.label{font:700 16px 'Segoe UI',Arial,sans-serif;fill:#f3f7fb}.detail{font:14px 'Segoe UI',Arial,sans-serif;fill:#a9b8c9}.tag{font:700 12px 'Segoe UI',Arial,sans-serif;letter-spacing:1.3px}.solid{fill:#111e2e;stroke:#53cdbb;stroke-width:2}.future{fill:#1e1a15;stroke:#d99b55;stroke-width:2;stroke-dasharray:8 7}.line{fill:none;stroke:#53cdbb;stroke-width:3;marker-end:url(#arrow)}.futureLine{fill:none;stroke:#d99b55;stroke-width:3;stroke-dasharray:8 7;marker-end:url(#futureArrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="650" rx="24" fill="#0b1220"/>
+  <text x="48" y="55" class="head">A clear boundary between prototype and vision</text>
+  <text x="48" y="84" class="sub">NSPIRE AI · AI Core 0.7 · host-side software is implemented; device integration is not.</text>
+  <rect x="38" y="120" width="1124" height="390" rx="20" fill="#0e1928" stroke="#26384b"/>
+  <text x="64" y="155" class="tag" fill="#53cdbb">IMPLEMENTED · PC PROTOTYPE</text>
+  <rect x="74" y="210" width="190" height="100" rx="14" class="solid"/>
+  <text x="96" y="246" class="label">PC CLI</text><text x="96" y="272" class="detail">one-shot · stream · chat</text>
+  <rect x="344" y="210" width="220" height="100" rx="14" class="solid"/>
+  <text x="366" y="246" class="label">Conversation engine</text><text x="366" y="272" class="detail">bounded context · safe turns</text>
+  <rect x="646" y="183" width="214" height="82" rx="14" class="solid"/>
+  <text x="668" y="217" class="label">Provider interface</text><text x="668" y="241" class="detail">Mock · optional OpenAI</text>
+  <rect x="646" y="294" width="214" height="82" rx="14" class="solid"/>
+  <text x="668" y="328" class="label">SQLite store</text><text x="668" y="352" class="detail">local · plaintext</text>
+  <rect x="344" y="388" width="310" height="82" rx="14" class="solid"/>
+  <text x="366" y="422" class="label">Protocol v1 + local stream handler</text><text x="366" y="446" class="detail">framing and handler · no network listener</text>
+  <path d="M264 260h72" class="line"/><path d="M564 234h72" class="line"/><path d="M564 282c35 0 40 52 72 52" class="line"/>
+  <path d="M439 310v70" class="line"/>
+  <rect x="697" y="397" width="416" height="68" rx="13" class="future"/>
+  <text x="720" y="427" class="label">Physical / network transport</text><text x="720" y="450" class="detail">unselected · feasibility unverified</text>
+  <rect x="832" y="183" width="280" height="120" rx="16" class="future"/>
+  <text x="855" y="219" class="tag" fill="#d99b55">FUTURE · NOT IMPLEMENTED</text>
+  <text x="855" y="251" class="label">TI‑Nspire CX II client</text><text x="855" y="277" class="detail">Ndless / OS compatibility unknown</text>
+  <path d="M832 264h-22v162h-145" class="futureLine"/>
+  <path d="M974 303v83" class="futureLine"/>
+  <text x="48" y="558" class="tag" fill="#53cdbb">SOLID PATH · EXISTS AND IS TESTED ON PC</text>
+  <text x="48" y="589" class="tag" fill="#d99b55">DASHED PATH · RESEARCH DIRECTION, NO DEVICE CONNECTION</text>
+  <text x="48" y="625" class="detail">No calculator, phone, or external hardware connection is part of the current implementation.</text>
+</svg>

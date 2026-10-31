@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="230" viewBox="0 0 1040 230" role="img" aria-labelledby="title desc">
+  <title id="title">NSPIRE AI</title>
+  <desc id="desc">A minimal teal and graphite wordmark with a spark and calculator-inspired frame.</desc>
+  <rect width="1040" height="230" rx="28" fill="#0b1220"/>
+  <g transform="translate(42 42)" fill="none" stroke="#55d6c2" stroke-width="5">
+    <rect x="4" y="4" width="132" height="132" rx="28" opacity=".3"/>
+    <path d="M34 102V40h13l46 43V40h17v62H96L51 59v43z" fill="#55d6c2" stroke="none"/>
+    <path d="M119 25l4 13 13 4-13 4-4 13-4-13-13-4 13-4z" fill="#f2b76e" stroke="none"/>
+  </g>
+  <text x="218" y="111" fill="#f4f7fb" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="68" font-weight="750" letter-spacing="2">NSPIRE AI</text>
+  <text x="222" y="158" fill="#99a9bb" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="25" letter-spacing="3">A SMARTER CALCULATOR</text>
+  <path d="M222 181h170" stroke="#55d6c2" stroke-width="4" stroke-linecap="round"/>
+</svg>

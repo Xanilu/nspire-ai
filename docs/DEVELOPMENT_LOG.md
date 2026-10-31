@@ -6,9 +6,16 @@ A concise record of meaningful project decisions, experiments, and results.
 
 - **Goal:** Define predictable provider failure and partial-output behavior; harden provider/stream error reporting without changing public provider, storage, protocol, or transport contracts.
 - **Changes:** Provider exceptions now carry stable internal categories, with timeout/network/HTTP mappings that omit raw exception and response details. The conversation engine preserves those categories while returning its existing sanitized user-facing error. One-shot `--stream` and guided chat explicitly label already displayed text as incomplete when a stream fails or is interrupted; failed turns remain uncommitted. Documentation now describes the configured `httpx` connect/pool/write/read wait bounds and clarifies that they do not constitute a total stream wall-clock deadline. Automatic retries remain disabled.
-- **Verification:** Focused `.venv` pytest run for provider, conversation, CLI, and config tests: 88 passed. Full offline `.venv` pytest suite: 149 passed, one POSIX-permissions test skipped on Windows. Tests use `httpx.MockTransport` and deterministic providers; no live API request was made.
+- **Verification at implementation:** Focused `.venv` pytest run for provider, conversation, CLI, and config tests: 88 passed. Full offline `.venv` pytest suite: 149 passed, one POSIX-permissions test skipped on Windows. Tests use `httpx.MockTransport` and deterministic providers; no live API request was made.
 - **Compatibility:** `AIProvider.generate`, `ProviderResponse`, one-shot/`--stream`/`--chat`, SQLite schema v1, Protocol v1, and transport contracts are unchanged.
 - **Limitations:** A synchronous stream that continuously produces data can exceed the configured per-operation/read-idle timeout in total duration. The CLI cannot force immediate cancellation inside an active blocking read; the configured read timeout bounds idle waiting.
+
+## 2026-10-31 — Project Presentation 1.0
+
+- **Goal:** Make the repository's current implementation and long-term calculator direction easy to understand without implying unbuilt integration.
+- **Changes:** Reworked the root landing page, added a minimal wordmark and current/future architecture diagram, documented evidence-backed engineering case studies, and aligned milestone terminology, limitations, and document links.
+- **Verification:** Fresh Windows run with Python 3.13.17 and pytest 9.2.0: 150 passed, one POSIX-permissions test skipped. The previously recorded AI Core 0.7 implementation run (149 passed, one skipped) is retained above as historical evidence. No live OpenAI request was made.
+- **Limitations:** GitHub repository description and topics are suggestions only; repository metadata was not changed. TI-Nspire compatibility, hardware paths, and device integration remain unverified or unimplemented.
 
 ## 2026-10-31 — AI Core 0.6
 

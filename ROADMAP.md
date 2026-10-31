@@ -1,6 +1,6 @@
 # Roadmap
 
-This roadmap separates completed PC foundations from research and features that still need implementation or device evidence.
+This roadmap separates the completed PC software foundation from research and features that still need implementation or device evidence. Current milestone: **AI Core 0.7, Phase 0 + 1**. No calculator integration is implemented.
 
 ## Phase 0 — Project foundation
 - [x] Create private repository
@@ -20,6 +20,8 @@ This roadmap separates completed PC foundations from research and features that 
 - [x] AI Core 0.5: bounded provider and conversation streaming with opt-in CLI output (independently reviewed and verified offline)
 - [x] AI Core 0.6: guided persistent interactive CLI chat using the conversation engine; one-shot commands remain supported
 - [x] AI Core 0.7 Phase 0 + 1: define failure and partial-output behavior; preserve stable sanitized provider error categories; signal incomplete CLI streams; document configured HTTP timeout boundaries; no automatic provider retries
+
+The current Windows suite was freshly verified for Project Presentation 1.0: **150 passed, 1 skipped** (POSIX permission bits are unavailable on Windows). The AI Core 0.7 milestone's original run recorded 149 passed, 1 skipped; see [Development Log](docs/DEVELOPMENT_LOG.md) for both runs.
 
 ## Phase 2 — Communication design
 - [ ] Compare possible calculator-to-host communication paths

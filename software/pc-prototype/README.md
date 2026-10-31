@@ -2,7 +2,7 @@
 
 **A smarter calculator.**
 
-AI Core 0.7 hardens provider failures and streamed output while preserving the provider-neutral conversation engine. The engine factory enables persistence by default; direct `ConversationEngine` construction remains in-memory. The mock provider remains the default.
+The PC prototype is at **AI Core 0.7 Phase 0 + 1**. It hardens provider failures and streamed output while preserving the provider-neutral conversation engine. The engine factory enables persistence by default; direct `ConversationEngine` construction remains in-memory. The mock provider remains the default. No calculator client or device connection is implemented. See the [repository overview](../../README.md), [architecture diagram](../../docs/assets/architecture-overview.svg), and [Engineering Journey](../../docs/ENGINEERING_JOURNEY.md).
 
 ## Requirements
 
@@ -110,5 +110,7 @@ python -m pytest
 ```
 
 Tests use `httpx.MockTransport`; no API key or live, billable request is needed.
+
+Freshly verified on Windows with Python 3.13.17 and pytest 9.2.0: **150 passed, 1 skipped**. The skipped POSIX-permissions test cannot run on Windows. The AI Core 0.7 implementation log records its earlier run as 149 passed, 1 skipped; the current run supersedes that count for the present checkout.
 
 The `AIProvider.generate` contract and `ProviderResponse` in `src/nspire_ai/providers/base.py` remain unchanged. GUI, school workflows, user accounts, cloud synchronization, multimodal features, encryption-at-rest, and calculator hardware integration are outside this milestone.
