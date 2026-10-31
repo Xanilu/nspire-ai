@@ -10,7 +10,7 @@ from typing import TextIO
 
 from nspire_ai.config import Settings
 from nspire_ai.conversations import ConversationEngine, create_conversation_engine
-from nspire_ai.errors import ConversationNotFoundError, ConversationProviderError, NspireAIError
+from nspire_ai.errors import ConversationNotFoundError, ConversationProviderError, NspireAIError, ProviderError
 from nspire_ai.logging_config import configure_logging
 from nspire_ai.providers.registry import create_provider
 
@@ -25,6 +25,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    partial_output = False
     try:
         settings = Settings.from_env()
         configure_logging(settings.log_level)
@@ -40,6 +41,9 @@ def main() -> int:
                 try:
                     source = stream(args.prompt)
                     iterator = iter(source)
+                except ProviderError as exc:
+                    _close_stream_resources(iterator, source)
+                    raise ConversationProviderError("The configured provider could not start the stream.", code=exc.code) from None
                 except Exception:
                     _close_stream_resources(iterator, source)
                     raise ConversationProviderError("The configured provider could not start the stream.") from None
@@ -49,6 +53,8 @@ def main() -> int:
             else:
                 try:
                     response = provider.generate(args.prompt)
+                except ProviderError as exc:
+                    raise ConversationProviderError("The configured provider could not process the message.", code=exc.code) from None
                 except Exception:
                     raise ConversationProviderError("The configured provider could not process the message.") from None
                 if not hasattr(response, "text") or not isinstance(response.text, str) or not response.text.strip():
@@ -66,6 +72,8 @@ def main() -> int:
                         chunk = next(iterator)
                     except StopIteration:
                         break
+                    except ProviderError as exc:
+                        raise ConversationProviderError("The configured provider could not complete the stream.", code=exc.code) from None
                     except Exception:
                         raise ConversationProviderError("The configured provider could not complete the stream.") from None
                     if not isinstance(chunk, str) or not chunk:
@@ -78,6 +86,7 @@ def main() -> int:
                     has_content = has_content or bool(chunk.strip())
                     sys.stdout.write(chunk)
                     sys.stdout.flush()
+                    partial_output = partial_output or bool(chunk.strip())
                 if not has_content:
                     raise ConversationProviderError("The configured provider returned an empty response.")
             finally:
@@ -88,9 +97,13 @@ def main() -> int:
             print(response.text)
         return 0
     except KeyboardInterrupt:
+        if partial_output:
+            sys.stdout.write("\n[Incomplete response; this turn was not saved.]\n")
         logging.getLogger(__name__).error("Streaming interrupted.")
         return 130
     except NspireAIError as exc:
+        if partial_output:
+            sys.stdout.write("\n[Incomplete response; this turn was not saved.]\n")
         logging.getLogger(__name__).error("%s", exc)
         return 2
 
@@ -202,22 +215,26 @@ def run_interactive(
         try:
             output.write("Assistant: ")
             output.flush()
+            wrote_chunk = False
             stream = engine.stream_message(conversation_id, stripped)
             try:
                 for chunk in stream:
                     output.write(chunk)
                     output.flush()
+                    wrote_chunk = wrote_chunk or bool(chunk.strip())
             finally:
                 close = getattr(stream, "close", None)
                 if callable(close):
                     close()
             output.write("\n")
         except KeyboardInterrupt:
-            output.write("\nTurn interrupted; it was not saved. Chat remains open. Type :quit to leave.\n")
+            marker = "[Incomplete response.] " if wrote_chunk else ""
+            output.write(f"\n{marker}Turn interrupted; it was not saved. Chat remains open. Type :quit to leave.\n")
         except ValueError as exc:
             output.write(f"\n{exc} Please try again.\n")
         except NspireAIError as exc:
-            output.write(f"\nCould not complete that turn: {exc}\nYour earlier history is still available; please try again.\n")
+            marker = "[Incomplete response; this turn was not saved.]\n" if wrote_chunk else ""
+            output.write(f"\n{marker}Could not complete that turn: {exc}\nYour earlier history is still available; please try again.\n")
 
 
 def _print_sessions(engine: ConversationEngine, output: TextIO) -> bool:

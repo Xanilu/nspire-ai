@@ -2,7 +2,7 @@
 
 **A smarter calculator.**
 
-AI Core 0.5 adds opt-in incremental text streaming to the provider-neutral conversation engine. The engine factory enables persistence by default; direct `ConversationEngine` construction remains in-memory. The mock provider remains the default.
+AI Core 0.7 hardens provider failures and streamed output while preserving the provider-neutral conversation engine. The engine factory enables persistence by default; direct `ConversationEngine` construction remains in-memory. The mock provider remains the default.
 
 ## Requirements
 
@@ -55,11 +55,11 @@ $env:NSPIRE_AI_REQUEST_TIMEOUT = "30"
 nspire-ai "Explain what a provider interface is"
 ```
 
-OpenAI requests use the official Responses API via `httpx`. They may incur API charges and send the selected conversation context to OpenAI. `--stream` requests actual incremental Responses API text deltas. The synchronous adapter uses the configured HTTP timeout and closes its response when the stream finishes or is closed; a blocked synchronous read is not guaranteed to stop immediately. Retries and tools are not implemented.
+OpenAI requests use the official Responses API via `httpx`. They may incur API charges and send the selected conversation context to OpenAI. `--stream` requests actual incremental Responses API text deltas. The configured HTTP timeout bounds connection, pool, write, and individual read waits (including idle time between stream fragments); it is not an overall wall-clock deadline, so a stream that continually produces data can run longer than that value. The synchronous adapter closes its response when the stream finishes or is closed; a blocked read ends at the configured read timeout. Retries and tools are not implemented.
 
 ## Interactive chat
 
-Run `nspire-ai --chat` to open a guided, persistent chat. Press Enter to start a new chat, type `L` to see saved chats, or paste a chat ID to resume it. The list shows IDs, last activity, message and turn counts without showing message text. During chat, type a message normally; `:help`, `:history`, `:sessions`, and `:quit` are optional shortcuts. Completed turns are saved as they finish; an interrupted or failed turn is not added to history. Press Ctrl+C to stop the current turn or Ctrl+D (Ctrl+Z then Enter on Windows) to close the chat. Use `nspire-ai --chat ID` to open a known chat directly.
+Run `nspire-ai --chat` to open a guided, persistent chat. Press Enter to start a new chat, type `L` to see saved chats, or paste a chat ID to resume it. The list shows IDs, last activity, message and turn counts without showing message text. During chat, type a message normally; `:help`, `:history`, `:sessions`, and `:quit` are optional shortcuts. Completed turns are saved as they finish; an interrupted or failed turn is not added to history. Any already displayed fragment is explicitly marked as an incomplete response that was not saved. Press Ctrl+C to stop the current turn or Ctrl+D (Ctrl+Z then Enter on Windows) to close the chat. Use `nspire-ai --chat ID` to open a known chat directly.
 
 Conversation history is stored locally as plaintext in the SQLite database described below. When OpenAI is selected, the context retained for that conversation, including prior turns, is sent to OpenAI with each request. The mock provider remains the default. One-shot commands and `--stream` continue to work as before.
 
@@ -84,7 +84,14 @@ engine.close()
 
 Context counts Python string characters in message content. The engine always retains configured system context and the current user message. If they cannot fit, the request fails. Otherwise, it includes the newest contiguous suffix of complete user/assistant turns that fits both context limits; it removes older turns first and never removes system context. OpenAI receives each retained message with its role. Legacy providers implementing only `generate(prompt)` receive the same context in a role-labeled text prompt.
 
-The engine factory stores conversations in a local SQLite database. Conversation IDs and validated user/assistant turns survive process restarts. Each successful turn is committed atomically. The store uses SQLite transactions, foreign keys, WAL mode, a bounded busy timeout, and optimistic revisions to detect writes from another engine. On a revision conflict, the provider response is discarded and the caller receives a safe storage conflict error; provider calls are not retried automatically.
+The engine factory stores conversations in a local SQLite database. Conversation IDs and validated user/assistant turns survive process restarts. Each successful turn is committed atomically. The store uses SQLite transactions, foreign keys, WAL mode, a bounded busy timeout, and optimistic revisions to detect writes from another engine. On a revision conflict, the provider response is discarded and the caller receives a safe storage conflict error; provider calls are not retried automatically. Provider failures expose stable internal categories (`timeout`, `unavailable`, `http_error`, or a generic provider category) while user-facing messages omit provider response bodies and exception details.
+
+### Failure behavior (AI Core 0.7)
+
+- A timeout maps to `timeout`; connection or other network failures map to `unavailable`; non-success HTTP status maps to `http_error`. Malformed, rejected, or unsupported provider data uses a generic sanitized provider category. Raw response bodies, request content, and exception details are not shown.
+- A failed one-shot request returns an error and does not append a conversation turn. A failed stream returns a nonzero status (2), and any already printed text is followed by an explicit incomplete/not-saved notice. Ctrl+C returns status 130 with the same notice if text was emitted.
+- Interactive chat stays open after a failed or interrupted turn and retains earlier completed history. The failed turn is not committed. Users choose whether to submit another request; the application never automatically repeats a provider request.
+- Storage revision conflicts keep their existing safe storage error behavior and are not retried. Protocol v1, the local transport contract, and SQLite schema v1 are unchanged; this milestone does not add transport timeouts or authentication.
 
 List sessions with `engine.list_conversations()`. To make a consistent backup, including WAL contents, call `engine.backup(r"C:\Backups\nspire-ai.sqlite3")`; the destination must not already exist. Restore with `engine.restore_backup(path)` on a newly initialized, empty persistent engine. The restore checks schema, integrity, IDs, message sequences, and configured limits before replacing the empty database. A per-database OS lock serializes storage operations across engine instances and processes; concurrent operations wait for restore to finish, subject to the bounded storage lock timeout. `engine.close()` closes the engine, and the engine supports `with` blocks.
 
@@ -94,7 +101,7 @@ The schema is versioned. Startup validates the database and refuses unsupported 
 
 Backup and restore first write a temporary file and then replace or publish it atomically. If the process is interrupted, the requested destination remains absent or unchanged; a hidden `.nspire-ai-backup-*.tmp` or `.nspire-ai-restore-*.tmp` file may remain. After confirming no NSPIRE AI process is using the directory, remove only those incomplete temporary files. Treat them as sensitive conversation data.
 
-The CLI supports one-shot requests and an opt-in guided persistent chat; `--stream` remains opt-in for one-shot requests. Keyboard interruption returns status 130. Protocol v1 and the stream transport schemas are unchanged.
+The CLI supports one-shot requests and an opt-in guided persistent chat; `--stream` remains opt-in for one-shot requests. An interrupted streamed turn is never committed and any emitted text is labeled incomplete. Keyboard interruption returns status 130; provider failures return status 2. Automatic retries are disabled because an uncertain provider outcome could create duplicate billable work. Protocol v1 and the stream transport schemas are unchanged.
 
 ## Testing
 

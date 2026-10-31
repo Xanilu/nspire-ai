@@ -104,6 +104,7 @@ def test_timeout_and_network_errors_are_sanitized(exception, message):
     finally:
         client.close()
     assert "sensitive" not in str(caught.value)
+    assert caught.value.code == ("timeout" if message == "timed out" else "unavailable")
 
 
 def test_http_error_is_sanitized():
@@ -114,6 +115,7 @@ def test_http_error_is_sanitized():
     finally:
         client.close()
     assert "secret" not in str(caught.value)
+    assert caught.value.code == "http_error"
 
 
 def test_malformed_json_response_is_sanitized():

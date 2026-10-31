@@ -19,6 +19,7 @@ This roadmap separates completed PC foundations from research and features that 
 - [x] AI Core 0.4: SQLite persistence, session listing, transactional turns, optimistic concurrency, and backup/restore
 - [x] AI Core 0.5: bounded provider and conversation streaming with opt-in CLI output (independently reviewed and verified offline)
 - [x] AI Core 0.6: guided persistent interactive CLI chat using the conversation engine; one-shot commands remain supported
+- [x] AI Core 0.7 Phase 0 + 1: define failure and partial-output behavior; preserve stable sanitized provider error categories; signal incomplete CLI streams; document configured HTTP timeout boundaries; no automatic provider retries
 
 ## Phase 2 — Communication design
 - [ ] Compare possible calculator-to-host communication paths

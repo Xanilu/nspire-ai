@@ -14,6 +14,7 @@ from nspire_ai.errors import (
     ConversationNotFoundError,
     ConversationProviderError,
     ConversationStorageError,
+    ProviderError,
 )
 from nspire_ai.messages import Message
 from nspire_ai.providers.base import AIProvider, ProviderResponse
@@ -145,6 +146,8 @@ class ConversationEngine:
             context = self._context.build(snapshot.messages, content)
             try:
                 result = self._generate(context)
+            except ProviderError as exc:
+                raise ConversationProviderError("The configured provider could not process the message.", code=exc.code) from None
             except Exception:
                 raise ConversationProviderError("The configured provider could not process the message.") from None
             if (
@@ -215,6 +218,9 @@ class ConversationEngine:
             except ConversationProviderError:
                 _close_stream_resources(iterator, source)
                 raise
+            except ProviderError as exc:
+                _close_stream_resources(iterator, source)
+                raise ConversationProviderError("The configured provider could not process the message.", code=exc.code) from None
             except Exception:
                 _close_stream_resources(iterator, source)
                 raise ConversationProviderError("The configured provider could not process the message.") from None
@@ -229,6 +235,8 @@ class ConversationEngine:
                         chunk = next(iterator)
                     except StopIteration:
                         break
+                    except ProviderError as exc:
+                        raise ConversationProviderError("The configured provider could not complete the stream.", code=exc.code) from None
                     except Exception:
                         raise ConversationProviderError("The configured provider could not complete the stream.") from None
                     if not isinstance(chunk, str) or not chunk or len(chunk) > self._max_stream_chunk_chars:

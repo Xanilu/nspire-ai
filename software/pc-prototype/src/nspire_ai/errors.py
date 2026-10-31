@@ -10,7 +10,11 @@ class ConfigurationError(NspireAIError):
 
 
 class ProviderError(NspireAIError):
-    """Raised when a provider cannot process a request."""
+    """Sanitized provider failure with a stable, non-sensitive category code."""
+
+    def __init__(self, message: str, *, code: str = "provider_error") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class ConversationError(NspireAIError):
@@ -22,7 +26,11 @@ class ConversationNotFoundError(ConversationError):
 
 
 class ConversationProviderError(ConversationError):
-    """Raised when a provider cannot complete a conversation turn."""
+    """Safe conversation failure retaining the provider's stable category code."""
+
+    def __init__(self, message: str, *, code: str = "provider_error") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 class ContextLimitError(ConversationError):

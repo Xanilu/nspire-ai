@@ -123,11 +123,11 @@ class OpenAIProvider:
             finally:
                 result.close()
         except httpx.TimeoutException:
-            raise ProviderError("OpenAI request timed out.") from None
+            raise ProviderError("OpenAI request timed out.", code="timeout") from None
         except httpx.HTTPStatusError:
-            raise ProviderError("OpenAI request failed.") from None
+            raise ProviderError("OpenAI request failed.", code="http_error") from None
         except httpx.RequestError:
-            raise ProviderError("OpenAI service is unavailable.") from None
+            raise ProviderError("OpenAI service is unavailable.", code="unavailable") from None
         finally:
             if owns_client:
                 client.close()
@@ -142,12 +142,12 @@ class OpenAIProvider:
             response.raise_for_status()
             payload = response.json()
         except httpx.TimeoutException as exc:
-            raise ProviderError("OpenAI request timed out.") from exc
+            raise ProviderError("OpenAI request timed out.", code="timeout") from None
         except httpx.HTTPStatusError as exc:
             # Do not expose response bodies, which may contain user or account details.
-            raise ProviderError("OpenAI request failed.") from exc
+            raise ProviderError("OpenAI request failed.", code="http_error") from None
         except httpx.RequestError as exc:
-            raise ProviderError("OpenAI service is unavailable.") from exc
+            raise ProviderError("OpenAI service is unavailable.", code="unavailable") from None
         except ValueError as exc:
             raise ProviderError("OpenAI returned an invalid response.") from exc
         finally:

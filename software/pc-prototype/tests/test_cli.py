@@ -39,7 +39,7 @@ def test_cli_stream_interruption_has_stable_status(capsys, monkeypatch):
     monkeypatch.setattr("sys.argv", ["nspire-ai", "--stream", "test prompt"])
     monkeypatch.setattr("nspire_ai.cli.create_provider", lambda settings: TrackedProvider())
     assert main() == 130
-    assert capsys.readouterr().out == "partial"
+    assert capsys.readouterr().out == "partial\n[Incomplete response; this turn was not saved.]\n"
     assert state["closed"]
 
 
@@ -60,7 +60,7 @@ def test_cli_closes_generator_stream_after_provider_failure(capsys, monkeypatch)
     monkeypatch.setattr("sys.argv", ["nspire-ai", "--stream", "test prompt"])
     monkeypatch.setattr("nspire_ai.cli.create_provider", lambda settings: StreamProvider())
     assert main() == 2
-    assert capsys.readouterr().out == "partial"
+    assert capsys.readouterr().out == "partial\n[Incomplete response; this turn was not saved.]\n"
     assert state["closed"]
 
 
@@ -88,7 +88,7 @@ def test_cli_closes_same_source_and_iterator_once(capsys, monkeypatch):
     monkeypatch.setattr("sys.argv", ["nspire-ai", "--stream", "test prompt"])
     monkeypatch.setattr("nspire_ai.cli.create_provider", lambda settings: StreamProvider())
     assert main() == 2
-    assert capsys.readouterr().out == "partial"
+    assert capsys.readouterr().out == "partial\n[Incomplete response; this turn was not saved.]\n"
     assert provider_stream.close_calls == 1
 
 
@@ -148,7 +148,7 @@ def test_cli_stream_rejects_oversized_fragment_before_writing(capsys, monkeypatc
     monkeypatch.setattr("sys.argv", ["nspire-ai", "--stream", "test prompt"])
     monkeypatch.setattr("nspire_ai.cli.create_provider", lambda settings: StreamProvider())
     assert main() == 2
-    assert capsys.readouterr().out == "ok"
+    assert capsys.readouterr().out == "ok\n[Incomplete response; this turn was not saved.]\n"
 
 
 def test_cli_stream_rejects_cumulative_overflow_before_writing_and_closes(capsys, monkeypatch):
@@ -173,7 +173,7 @@ def test_cli_stream_rejects_cumulative_overflow_before_writing_and_closes(capsys
     monkeypatch.setattr("sys.argv", ["nspire-ai", "--stream", "test prompt"])
     monkeypatch.setattr("nspire_ai.cli.create_provider", lambda settings: StreamProvider())
     assert main() == 2
-    assert capsys.readouterr().out == "1234"
+    assert capsys.readouterr().out == "1234\n[Incomplete response; this turn was not saved.]\n"
     assert provider_stream.closed
 
 
@@ -197,7 +197,7 @@ def test_cli_stream_closes_after_provider_failure(capsys, monkeypatch):
     monkeypatch.setattr("sys.argv", ["nspire-ai", "--stream", "test prompt"])
     monkeypatch.setattr("nspire_ai.cli.create_provider", lambda settings: StreamProvider())
     assert main() == 2
-    assert capsys.readouterr().out == "partial"
+    assert capsys.readouterr().out == "partial\n[Incomplete response; this turn was not saved.]\n"
     assert provider_stream.closed
 
 
@@ -210,7 +210,7 @@ def test_cli_stream_rejects_invalid_or_empty_fragments_before_writing(capsys, mo
     monkeypatch.setattr("sys.argv", ["nspire-ai", "--stream", "test prompt"])
     monkeypatch.setattr("nspire_ai.cli.create_provider", lambda settings: StreamProvider())
     assert main() == 2
-    assert capsys.readouterr().out == "ok"
+    assert capsys.readouterr().out == "ok\n[Incomplete response; this turn was not saved.]\n"
 
 
 def test_cli_stream_rejects_empty_final_output(capsys, monkeypatch):
@@ -387,6 +387,27 @@ def test_chat_interrupt_during_stream_closes_provider_stream_and_does_not_commit
 
     assert run_interactive(engine, conversation_id=conversation_id, input_fn=eof, output=StringIO()) == 0
     engine.close()
+
+
+def test_chat_interrupt_before_first_stream_chunk_does_not_claim_incomplete_response():
+    from io import StringIO
+    from nspire_ai.cli import run_interactive
+
+    class Provider:
+        def stream_messages(self, messages):
+            raise KeyboardInterrupt
+            yield  # Make this a generator that is interrupted before its first chunk.
+
+    engine = _interactive_engine(Provider())
+    conversation_id = engine.create_conversation()
+    prompts = iter(("hello", ":quit"))
+    output = StringIO()
+    assert run_interactive(engine, conversation_id=conversation_id,
+                           input_fn=lambda _prompt: next(prompts), output=output) == 0
+    result = output.getvalue()
+    assert "Turn interrupted; it was not saved" in result
+    assert "[Incomplete response.]" not in result
+    assert engine.get_history(conversation_id) == ()
 
 
 def test_chat_command_line_defaults_to_create_and_engine_is_closed(monkeypatch):

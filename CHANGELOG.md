@@ -6,6 +6,7 @@ No versioned releases have been published. Milestone notes are listed under Unre
 
 ## Unreleased
 
+- Added AI Core 0.7 Phase 0 and 1 error contracts, stable sanitized provider error categories, explicit CLI signaling for partial streamed output, and clarified bounded HTTP timeout behavior. Provider and storage compatibility is preserved; automatic retries remain disabled.
 - Added AI Core 0.6 guided persistent CLI chat with discoverable new/resume choices, metadata-only session listing, history/help/quit shortcuts, and recoverable turn errors. Existing one-shot and `--stream` modes remain available.
 - Added AI Core 0.5 opt-in text streaming, OpenAI Responses SSE parsing, deterministic Mock streaming, bounded and atomic conversation stream commits, and CLI `--stream` support. Protocol v1, Transport Layer 0.1, and SQLite schema remain unchanged.
 - Added AI Core 0.4 SQLite conversation persistence, restart restoration, session listing, transactional complete turns, revision conflict detection, and consistent backup/restore. The engine factory persists by default; direct construction remains in-memory.

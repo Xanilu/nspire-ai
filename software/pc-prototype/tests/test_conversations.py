@@ -121,6 +121,22 @@ def test_provider_failure_is_sanitized_and_does_not_append_partial_turn():
     assert engine.get_history(conversation_id) == before
 
 
+def test_provider_error_category_survives_engine_mapping_without_details():
+    from nspire_ai.errors import ProviderError
+
+    class TimedOutProvider:
+        def generate(self, prompt):
+            raise ProviderError("private timeout detail", code="timeout")
+
+    engine = ConversationEngine(TimedOutProvider())
+    conversation_id = engine.create_conversation()
+    with pytest.raises(ConversationProviderError) as caught:
+        engine.send_message(conversation_id, "question")
+    assert caught.value.code == "timeout"
+    assert "private timeout detail" not in str(caught.value)
+    assert engine.get_history(conversation_id) == ()
+
+
 def test_conversations_are_isolated_and_mock_receives_role_mapped_history():
     provider = RecordingMockProvider()
     engine = ConversationEngine(provider, system_context="trusted system context")
