@@ -27,6 +27,21 @@ from nspire_ai.storage import (
 )
 
 
+def _close_stream_resources(iterator, source) -> None:
+    """Close each distinct provider stream object once."""
+    seen: set[int] = set()
+    for resource in (iterator, source):
+        if resource is None or id(resource) in seen:
+            continue
+        seen.add(id(resource))
+        close = getattr(resource, "close", None)
+        if callable(close):
+            try:
+                close()
+            except Exception:
+                pass
+
+
 class ConversationEngine:
     """Manage independent conversations and commit only successful turns."""
 
@@ -37,6 +52,8 @@ class ConversationEngine:
         system_context: str = "",
         max_input_chars: int = 10_000,
         max_context_chars: int = 24_000,
+        max_stream_chars: int | None = None,
+        max_stream_chunk_chars: int = 4_096,
         max_context_messages: int = 32,
         max_history_messages: int = 200,
         max_history_chars: int = 100_000,
@@ -49,10 +66,18 @@ class ConversationEngine:
             raise ValueError("Maximum stored history messages must be an even integer of at least two.")
         if type(max_history_chars) is not int or max_history_chars < 1:
             raise ValueError("Maximum stored history characters must be a positive integer.")
+        if max_stream_chars is None:
+            max_stream_chars = max_context_chars
+        if type(max_stream_chars) is not int or max_stream_chars < 1:
+            raise ValueError("Maximum streamed output characters must be a positive integer.")
+        if type(max_stream_chunk_chars) is not int or max_stream_chunk_chars < 1:
+            raise ValueError("Maximum stream chunk characters must be a positive integer.")
         self._provider = provider
         self._max_input_chars = max_input_chars
         self._max_history_messages = max_history_messages
         self._max_history_chars = max_history_chars
+        self._max_stream_chars = max_stream_chars
+        self._max_stream_chunk_chars = max_stream_chunk_chars
         self._store = store or InMemoryConversationStore(max_conversations=max_conversations)
         self._context = ContextManager(
             system_context=system_context,
@@ -146,6 +171,88 @@ class ConversationEngine:
             )
             return assistant_message
 
+    def stream_message(self, conversation_id: str, content: str) -> Iterator[str]:
+        """Yield response fragments and commit the complete turn after clean completion.
+
+        Providers without streaming support use a one-shot compatibility fallback,
+        split into bounded fragments.
+        """
+        self._ensure_open()
+        if not isinstance(content, str) or not content.strip():
+            raise ValueError("Message cannot be empty.")
+        if len(content) > self._max_input_chars:
+            raise ValueError("Message exceeds the configured input length limit.")
+
+        def run() -> Iterator[str]:
+            # Keep the lock only for the snapshot. Provider consumption and each
+            # yield happen after leaving this block, so a retained iterator can
+            # never strand conversation reads behind a suspended generator.
+            with self._locked_conversation(conversation_id) as valid_id:
+                snapshot = self._store.load(valid_id)
+                context = self._context.build(snapshot.messages, content)
+            stream_method = getattr(self._provider, "stream_messages", None)
+            source = None
+            iterator = None
+            try:
+                if callable(stream_method):
+                    source = stream_method(context)
+                else:
+                    prompt = "\n\n".join(f"{message.role.upper()}:\n{message.content}" for message in context)
+                    stream_method = getattr(self._provider, "stream", None)
+                    if callable(stream_method):
+                        source = stream_method(prompt)
+                    else:
+                        result = self._generate(context)
+                        if (not isinstance(result, ProviderResponse) or not isinstance(result.text, str)
+                                or not result.text.strip() or not isinstance(result.provider, str)
+                                or not result.provider.strip()):
+                            raise ConversationProviderError("The configured provider returned an invalid response.")
+                        if len(result.text) > self._max_stream_chars:
+                            raise ConversationProviderError("The configured provider response exceeds the output limit.")
+                        source = (result.text[offset:offset + self._max_stream_chunk_chars]
+                                  for offset in range(0, len(result.text), self._max_stream_chunk_chars))
+                iterator = iter(source)
+            except ConversationProviderError:
+                _close_stream_resources(iterator, source)
+                raise
+            except Exception:
+                _close_stream_resources(iterator, source)
+                raise ConversationProviderError("The configured provider could not process the message.") from None
+            except BaseException:
+                _close_stream_resources(iterator, source)
+                raise
+            parts: list[str] = []
+            total = 0
+            try:
+                while True:
+                    try:
+                        chunk = next(iterator)
+                    except StopIteration:
+                        break
+                    except Exception:
+                        raise ConversationProviderError("The configured provider could not complete the stream.") from None
+                    if not isinstance(chunk, str) or not chunk or len(chunk) > self._max_stream_chunk_chars:
+                        raise ConversationProviderError("The configured provider returned an invalid stream chunk.")
+                    total += len(chunk)
+                    if total > self._max_stream_chars:
+                        raise ConversationProviderError("The configured provider response exceeds the output limit.")
+                    parts.append(chunk)
+                    yield chunk
+                text = "".join(parts)
+                if not text.strip():
+                    raise ConversationProviderError("The configured provider returned an empty response.")
+                if len(text) > self._context.max_context_chars:
+                    raise ConversationProviderError("The configured provider response exceeds the output limit.")
+                user_message, assistant_message = Message("user", content), Message("assistant", text)
+                if len(content) + len(text) > self._max_history_chars:
+                    raise ContextLimitError("The completed turn exceeds the stored history limit.")
+                with self._locked_conversation(conversation_id) as valid_id:
+                    self._store.commit_turn(valid_id, snapshot.revision, user_message, assistant_message,
+                        max_history_messages=self._max_history_messages, max_history_chars=self._max_history_chars)
+            finally:
+                _close_stream_resources(iterator, source)
+        return run()
+
     def backup(self, destination: str | Path) -> str:
         """Create a consistent SQLite backup at a new destination path."""
         self._ensure_open()
@@ -210,6 +317,8 @@ def create_conversation_engine(
         max_input_chars=settings.max_input_chars,
         max_context_chars=settings.max_context_chars,
         max_context_messages=settings.max_context_messages,
+        max_stream_chars=settings.max_stream_chars,
+        max_stream_chunk_chars=settings.max_stream_chunk_chars,
         max_history_messages=settings.max_history_messages,
         max_history_chars=settings.max_history_chars,
         max_conversations=settings.max_conversations,

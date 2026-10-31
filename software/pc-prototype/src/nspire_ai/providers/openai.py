@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import json
 import os
-from collections.abc import Sequence
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 import httpx
@@ -51,6 +52,85 @@ class OpenAIProvider:
             raise ProviderError("OpenAI API key is not configured.")
         payload = [{"role": message.role, "content": message.content} for message in validated]
         return self._send_input(payload)
+
+    def stream(self, prompt: str) -> Iterator[str]:
+        if not prompt.strip():
+            raise ProviderError("Prompt cannot be empty.")
+        if not self._api_key or not self._api_key.strip():
+            raise ProviderError("OpenAI API key is not configured.")
+        yield from self._stream_input(prompt)
+
+    def stream_messages(self, messages: Sequence[Message]) -> Iterator[str]:
+        try:
+            validated = validate_provider_messages(messages)
+        except ValueError as exc:
+            raise ProviderError("Conversation context is invalid.") from exc
+        if not self._api_key or not self._api_key.strip():
+            raise ProviderError("OpenAI API key is not configured.")
+        payload = [{"role": message.role, "content": message.content} for message in validated]
+        yield from self._stream_input(payload)
+
+    def _stream_input(self, input_value: str | list[dict[str, str]]) -> Iterator[str]:
+        headers = {"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"}
+        body = {"model": self._model, "input": input_value, "stream": True}
+        owns_client = self._client is None
+        client = self._client or httpx.Client(timeout=self._timeout)
+        completed = False
+        try:
+            request = client.build_request("POST", "https://api.openai.com/v1/responses", headers=headers, json=body)
+            result = client.send(request, stream=True)
+            try:
+                result.raise_for_status()
+                event_type: str | None = None
+                data_lines: list[str] = []
+                for line in result.iter_lines():
+                    if not line:
+                        if data_lines:
+                            data = "\n".join(data_lines)
+                            try:
+                                payload = json.loads(data)
+                            except ValueError:
+                                raise ProviderError("OpenAI returned an invalid streaming response.") from None
+                            if not isinstance(payload, dict):
+                                raise ProviderError("OpenAI returned an invalid streaming response.")
+                            kind = event_type or payload.get("type")
+                            if completed:
+                                raise ProviderError("OpenAI returned an invalid streaming response.")
+                            if kind == "response.output_text.delta":
+                                delta = payload.get("delta")
+                                if not isinstance(delta, str) or not delta:
+                                    raise ProviderError("OpenAI returned an invalid streaming response.")
+                                yield delta
+                            elif kind == "response.completed":
+                                response_data = payload.get("response")
+                                if not isinstance(response_data, dict) or response_data.get("status") != "completed":
+                                    raise ProviderError("OpenAI returned an invalid streaming response.")
+                                completed = True
+                            elif kind in {"response.failed", "response.incomplete", "error"}:
+                                raise ProviderError("OpenAI streaming request failed.")
+                            elif kind not in {"response.created", "response.in_progress", "response.output_item.added", "response.content_part.added", "response.content_part.done", "response.output_item.done", "response.output_text.done", "response.completed"}:
+                                raise ProviderError("OpenAI returned an unsupported streaming event.")
+                            event_type, data_lines = None, []
+                        continue
+                    if line.startswith("event:"):
+                        event_type = line[6:].strip()
+                    elif line.startswith("data:"):
+                        data_lines.append(line[5:].lstrip())
+                if data_lines:
+                    raise ProviderError("OpenAI returned an incomplete streaming response.")
+                if not completed:
+                    raise ProviderError("OpenAI streaming response did not complete.")
+            finally:
+                result.close()
+        except httpx.TimeoutException:
+            raise ProviderError("OpenAI request timed out.") from None
+        except httpx.HTTPStatusError:
+            raise ProviderError("OpenAI request failed.") from None
+        except httpx.RequestError:
+            raise ProviderError("OpenAI service is unavailable.") from None
+        finally:
+            if owns_client:
+                client.close()
 
     def _send_input(self, input_value: str | list[dict[str, str]]) -> ProviderResponse:
         headers = {"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"}

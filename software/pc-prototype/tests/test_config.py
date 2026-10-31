@@ -19,6 +19,8 @@ def clear_config_environment(monkeypatch):
         "NSPIRE_AI_MAX_INPUT_CHARS",
         "NSPIRE_AI_MAX_CONTEXT_CHARS",
         "NSPIRE_AI_MAX_CONTEXT_MESSAGES",
+        "NSPIRE_AI_MAX_STREAM_CHARS",
+        "NSPIRE_AI_MAX_STREAM_CHUNK_CHARS",
         "NSPIRE_AI_MAX_HISTORY_MESSAGES",
         "NSPIRE_AI_MAX_HISTORY_CHARS",
         "NSPIRE_AI_MAX_CONVERSATIONS",
@@ -49,6 +51,8 @@ def test_defaults_are_safe(monkeypatch):
     assert settings.model == "gpt-4.1-mini"
     assert settings.request_timeout == 30.0
     assert settings.max_history_chars == 100_000
+    assert settings.max_stream_chars == 24_000
+    assert settings.max_stream_chunk_chars == 4_096
     assert settings.persistence_enabled is True
     assert settings.data_dir is None
 

@@ -1,10 +1,12 @@
 import pytest
+from threading import Event, Thread
 
 from nspire_ai.conversations import ConversationEngine, ConversationNotFoundError
-from nspire_ai.errors import ConversationProviderError, ContextLimitError
+from nspire_ai.errors import ConversationProviderError, ConversationStorageConflictError, ContextLimitError
 from nspire_ai.messages import Message
 from nspire_ai.providers.base import ProviderResponse
 from nspire_ai.providers.mock import MockProvider
+from nspire_ai.storage import InMemoryConversationStore
 
 
 class RecordingProvider:
@@ -192,3 +194,150 @@ def test_stored_history_character_limit_prunes_whole_old_turns():
         ("user", "b"),
         ("assistant", "answer 2"),
     ]
+
+
+def test_streaming_commits_only_after_success_and_closing_aborts():
+    class Chunks:
+        def stream_messages(self, messages):
+            yield "first"
+            yield " second"
+
+    engine = ConversationEngine(Chunks())
+    cid = engine.create_conversation()
+    stream = engine.stream_message(cid, "question")
+    assert next(stream) == "first"
+    assert engine._conversation_lock(cid).acquire(blocking=False)
+    engine._conversation_lock(cid).release()
+    stream.close()
+    assert engine._conversation_lock(cid).acquire(blocking=False)
+    engine._conversation_lock(cid).release()
+    assert engine.get_history(cid) == ()
+    assert list(engine.stream_message(cid, "question")) == ["first", " second"]
+    assert [m.content for m in engine.get_history(cid)] == ["question", "first second"]
+
+
+def test_abandoned_stream_does_not_hold_lock_or_commit_partial_turn():
+    class Chunks:
+        def stream_messages(self, messages):
+            yield "first"
+            yield " second"
+
+    engine = ConversationEngine(Chunks())
+    cid = engine.create_conversation()
+    stream = engine.stream_message(cid, "question")
+    assert next(stream) == "first"
+
+    started = Event()
+    result = []
+
+    def read_history():
+        started.set()
+        result.append(engine.get_history(cid))
+
+    reader = Thread(target=read_history, daemon=True)
+    reader.start()
+    try:
+        assert started.wait(timeout=1)
+        reader.join(timeout=1)
+        assert not reader.is_alive(), "get_history blocked behind a retained stream iterator"
+        assert result == [()]
+    finally:
+        # Keep cleanup bounded even if the regression reappears.
+        stream.close()
+        reader.join(timeout=1)
+    assert engine.get_history(cid) == ()
+
+
+def test_streaming_enforces_chunk_and_total_limits_without_commit():
+    class Chunks:
+        def stream_messages(self, messages):
+            yield "1234"
+            yield "5678"
+
+    engine = ConversationEngine(Chunks(), max_stream_chars=6, max_stream_chunk_chars=4)
+    cid = engine.create_conversation()
+    stream = engine.stream_message(cid, "question")
+    assert next(stream) == "1234"
+    with pytest.raises(ConversationProviderError):
+        next(stream)
+    assert engine.get_history(cid) == ()
+
+
+def test_streaming_provider_failure_midstream_is_sanitized_and_releases_lock():
+    class Chunks:
+        def stream_messages(self, messages):
+            yield "partial"
+            raise RuntimeError("private streaming detail")
+
+    engine = ConversationEngine(Chunks())
+    cid = engine.create_conversation()
+    stream = engine.stream_message(cid, "question")
+    assert next(stream) == "partial"
+    with pytest.raises(ConversationProviderError) as caught:
+        next(stream)
+    assert "private streaming detail" not in str(caught.value)
+    assert engine.get_history(cid) == ()
+    assert engine._conversation_lock(cid).acquire(blocking=False)
+    engine._conversation_lock(cid).release()
+
+
+def test_empty_stream_is_rejected_without_commit():
+    class Empty:
+        def stream_messages(self, messages):
+            if False:
+                yield ""
+
+    engine = ConversationEngine(Empty())
+    cid = engine.create_conversation()
+    with pytest.raises(ConversationProviderError, match="empty"):
+        list(engine.stream_message(cid, "question"))
+    assert engine.get_history(cid) == ()
+
+
+def test_legacy_fallback_splits_large_unicode_response_without_changing_text():
+    response_text = ("🙂漢字é" * 1_250)
+
+    class LegacyProvider:
+        name = "legacy"
+
+        def generate(self, prompt):
+            return ProviderResponse(response_text, self.name)
+
+    engine = ConversationEngine(
+        LegacyProvider(), max_stream_chars=8_000, max_stream_chunk_chars=257,
+    )
+    cid = engine.create_conversation()
+    fragments = list(engine.stream_message(cid, "question"))
+    assert fragments
+    assert all(0 < len(fragment) <= 257 for fragment in fragments)
+    assert "".join(fragments) == response_text
+    assert [message.content for message in engine.get_history(cid)] == ["question", response_text]
+
+
+def test_legacy_fallback_rejects_output_over_total_limit_without_commit():
+    class LegacyProvider:
+        name = "legacy"
+
+        def generate(self, prompt):
+            return ProviderResponse("x" * 101, self.name)
+
+    engine = ConversationEngine(
+        LegacyProvider(), max_stream_chars=100, max_stream_chunk_chars=10,
+    )
+    cid = engine.create_conversation()
+    with pytest.raises(ConversationProviderError, match="output limit"):
+        list(engine.stream_message(cid, "question"))
+    assert engine.get_history(cid) == ()
+
+
+def test_stream_revision_conflict_discards_stale_turn_without_retry():
+    store = InMemoryConversationStore()
+    first = ConversationEngine(RecordingProvider(), store=store)
+    second = ConversationEngine(RecordingProvider(), store=store)
+    cid = first.create_conversation()
+    stream = first.stream_message(cid, "stale")
+    assert next(stream).startswith("answer")
+    second.send_message(cid, "winner")
+    with pytest.raises(ConversationStorageConflictError, match="changed during this request"):
+        next(stream)
+    assert [message.content for message in first.get_history(cid)] == ["winner", "answer 1"]

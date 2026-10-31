@@ -6,6 +6,7 @@ The project is in its initial planning stage. There are no released versions yet
 
 ## Unreleased
 
+- Added AI Core 0.5 opt-in text streaming, OpenAI Responses SSE parsing, deterministic Mock streaming, bounded and atomic conversation stream commits, and CLI `--stream` support. Protocol v1, Transport Layer 0.1, and SQLite schema remain unchanged.
 - Added AI Core 0.4 SQLite conversation persistence, restart restoration, session listing, transactional complete turns, revision conflict detection, and consistent backup/restore. The engine factory persists by default; direct construction remains in-memory.
 - Added AI Core 0.3 in-memory conversation management, role-validated message history, deterministic bounded context, and Mock/OpenAI conversation support.
 - Added AI Core 0.2 provider registry/factory, optional OpenAI Responses API adapter, model and timeout configuration, and sanitized provider failures. Mock remains the default.

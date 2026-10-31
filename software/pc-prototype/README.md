@@ -1,6 +1,6 @@
 # NSPIRE AI PC prototype
 
-AI Core 0.4 adds local SQLite persistence, session listing, and validated backup/restore to the provider-neutral conversation engine. The engine factory enables persistence by default; direct `ConversationEngine` construction remains in-memory. The mock provider remains the default.
+AI Core 0.5 adds opt-in incremental text streaming to the provider-neutral conversation engine. The engine factory enables persistence by default; direct `ConversationEngine` construction remains in-memory. The mock provider remains the default.
 
 ## Requirements
 
@@ -20,6 +20,7 @@ python -m pip install -e ".[dev]"
 
 ```powershell
 nspire-ai "Explain what a provider interface is"
+nspire-ai --stream "Explain what a provider interface is"
 ```
 
 Configuration is read from environment variables:
@@ -31,6 +32,8 @@ Configuration is read from environment variables:
 - `NSPIRE_AI_MAX_INPUT_CHARS` limits one user message (default `10000`).
 - `NSPIRE_AI_MAX_CONTEXT_CHARS` limits message content sent to the provider (default `24000`).
 - `NSPIRE_AI_MAX_CONTEXT_MESSAGES` limits provider messages including system context (default `32`).
+- `NSPIRE_AI_MAX_STREAM_CHARS` bounds assembled streamed output (default `24000`).
+- `NSPIRE_AI_MAX_STREAM_CHUNK_CHARS` bounds one provider fragment (default `4096`).
 - `NSPIRE_AI_MAX_HISTORY_MESSAGES` bounds retained history per conversation (default `200`, rounded only by whole turns and must be even).
 - `NSPIRE_AI_MAX_HISTORY_CHARS` bounds retained history content per conversation (default `100000`).
 - `NSPIRE_AI_MAX_CONVERSATIONS` limits active conversations in one engine (default `1000`).
@@ -49,7 +52,7 @@ $env:NSPIRE_AI_REQUEST_TIMEOUT = "30"
 nspire-ai "Explain what a provider interface is"
 ```
 
-OpenAI requests use the official Responses API via `httpx`. They may incur API charges and send the selected conversation context to OpenAI. The adapter is synchronous and does not implement streaming, retries, or tools.
+OpenAI requests use the official Responses API via `httpx`. They may incur API charges and send the selected conversation context to OpenAI. `--stream` requests actual incremental Responses API text deltas. The synchronous adapter uses the configured HTTP timeout and closes its response when the stream finishes or is closed; a blocked synchronous read is not guaranteed to stop immediately. Retries and tools are not implemented.
 
 ## Conversations
 
@@ -61,13 +64,15 @@ from nspire_ai import Settings, create_conversation_engine
 engine = create_conversation_engine(Settings.from_env())
 conversation_id = engine.create_conversation()
 reply = engine.send_message(conversation_id, "What is a quadratic equation?")
+for fragment in engine.stream_message(conversation_id, "Show me a simple example."):
+    print(fragment, end="", flush=True)
 engine.send_message(conversation_id, "Show me a simple example.")
 history = engine.get_history(conversation_id)
 engine.delete_conversation(conversation_id)
 engine.close()
 ```
 
-`send_message` accepts user text only; roles are assigned by the engine. Unknown or deleted IDs raise a generic `ConversationNotFoundError`. Provider failures raise a sanitized `ConversationProviderError` and leave history unchanged. The engine retains successful user/assistant pairs, capped by both configured history limits.
+`send_message` and `stream_message` accept user text only; roles are assigned by the engine. Unknown or deleted IDs raise a generic `ConversationNotFoundError`. Provider failures raise a sanitized `ConversationProviderError` and leave history unchanged. Streaming snapshots history under the per-conversation lock, then yields fragments without holding it. The complete user/assistant pair is persisted only after the provider completes successfully and the assembled output validates; a revision check detects updates made during streaming. Closing the iterator early leaves history unchanged and releases provider resources. Providers without the optional streaming methods use a one-shot response yielded as one fragment. The engine retains successful user/assistant pairs, capped by both configured history limits.
 
 Context counts Python string characters in message content. The engine always retains configured system context and the current user message. If they cannot fit, the request fails. Otherwise, it includes the newest contiguous suffix of complete user/assistant turns that fits both context limits; it removes older turns first and never removes system context. OpenAI receives each retained message with its role. Legacy providers implementing only `generate(prompt)` receive the same context in a role-labeled text prompt.
 
@@ -81,7 +86,7 @@ The schema is versioned. Startup validates the database and refuses unsupported 
 
 Backup and restore first write a temporary file and then replace or publish it atomically. If the process is interrupted, the requested destination remains absent or unchanged; a hidden `.nspire-ai-backup-*.tmp` or `.nspire-ai-restore-*.tmp` file may remain. After confirming no NSPIRE AI process is using the directory, remove only those incomplete temporary files. Treat them as sensitive conversation data.
 
-The existing CLI remains a one-shot command and the Protocol v1 and stream transport schemas are unchanged. Applications that need multi-turn behavior use the Python conversation API above.
+The CLI remains one-shot; `--stream` is opt-in. Keyboard interruption returns status 130. Protocol v1 and the stream transport schemas are unchanged. Applications that need multi-turn behavior use the Python conversation API above.
 
 ## Test
 
@@ -91,4 +96,4 @@ python -m pytest
 
 Tests use `httpx.MockTransport`; no API key or live, billable request is needed.
 
-The `AIProvider` protocol and `ProviderResponse` in `src/nspire_ai/providers/base.py` remain the provider seam. GUI, school workflows, user accounts, cloud synchronization, multimodal features, streaming, encryption-at-rest, and calculator hardware integration are outside this milestone.
+The `AIProvider.generate` contract and `ProviderResponse` in `src/nspire_ai/providers/base.py` remain unchanged. GUI, school workflows, user accounts, cloud synchronization, multimodal features, encryption-at-rest, and calculator hardware integration are outside this milestone.

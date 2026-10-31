@@ -58,7 +58,7 @@ nspire-ai/
 
 ## Getting started
 
-The PC prototype includes AI Core 0.4: bounded conversations with local SQLite persistence, session listing, and validated backup/restore. The mock provider remains the offline default and OpenAI is optional. Setup and conversation API instructions are in [software/pc-prototype/README.md](software/pc-prototype/README.md).
+The PC prototype includes AI Core 0.5: bounded SQLite conversations and opt-in incremental response streaming. The mock provider remains the offline default and OpenAI is optional. Setup and conversation API instructions are in [software/pc-prototype/README.md](software/pc-prototype/README.md).
 
 See [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current plan.
 

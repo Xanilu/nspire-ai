@@ -3,6 +3,7 @@
 from nspire_ai.errors import ProviderError
 from nspire_ai.messages import Message, validate_provider_messages
 from nspire_ai.providers.base import ProviderResponse
+from collections.abc import Iterator
 
 
 class MockProvider:
@@ -21,3 +22,13 @@ class MockProvider:
         validated = validate_provider_messages(messages)
         latest_user_message = next(message for message in reversed(validated) if message.role == "user")
         return self.generate(latest_user_message.content)
+
+    def stream(self, prompt: str) -> Iterator[str]:
+        text = self.generate(prompt).text
+        for character in text:
+            yield character
+
+    def stream_messages(self, messages: tuple[Message, ...]) -> Iterator[str]:
+        validated = validate_provider_messages(messages)
+        latest_user_message = next(message for message in reversed(validated) if message.role == "user")
+        yield from self.stream(latest_user_message.content)

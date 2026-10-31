@@ -49,6 +49,8 @@ class Settings:
     max_input_chars: int = 10_000
     max_context_chars: int = 24_000
     max_context_messages: int = 32
+    max_stream_chars: int = 24_000
+    max_stream_chunk_chars: int = 4_096
     max_history_messages: int = 200
     max_history_chars: int = 100_000
     max_conversations: int = 1_000
@@ -82,6 +84,8 @@ class Settings:
         max_input_chars = _read_positive_int("NSPIRE_AI_MAX_INPUT_CHARS", 10_000)
         max_context_chars = _read_positive_int("NSPIRE_AI_MAX_CONTEXT_CHARS", 24_000)
         max_context_messages = _read_positive_int("NSPIRE_AI_MAX_CONTEXT_MESSAGES", 32)
+        max_stream_chars = _read_positive_int("NSPIRE_AI_MAX_STREAM_CHARS", 24_000)
+        max_stream_chunk_chars = _read_positive_int("NSPIRE_AI_MAX_STREAM_CHUNK_CHARS", 4_096)
         max_history_messages = _read_positive_int("NSPIRE_AI_MAX_HISTORY_MESSAGES", 200)
         max_history_chars = _read_positive_int("NSPIRE_AI_MAX_HISTORY_CHARS", 100_000)
         max_conversations = _read_positive_int("NSPIRE_AI_MAX_CONVERSATIONS", 1_000)
@@ -117,6 +121,8 @@ class Settings:
             max_input_chars=max_input_chars,
             max_context_chars=max_context_chars,
             max_context_messages=max_context_messages,
+            max_stream_chars=max_stream_chars,
+            max_stream_chunk_chars=max_stream_chunk_chars,
             max_history_messages=max_history_messages,
             max_history_chars=max_history_chars,
             max_conversations=max_conversations,

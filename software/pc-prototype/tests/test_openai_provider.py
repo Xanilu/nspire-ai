@@ -182,3 +182,66 @@ def test_incomplete_max_output_tokens_response_never_returns_partial_text():
         client.close()
     assert "Partial answer" not in str(caught.value)
     assert "max_output_tokens" not in str(caught.value)
+
+
+def test_stream_sends_sse_request_and_yields_incremental_deltas():
+    events = (
+        'event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"Hel"}\n\n'
+        'event: response.output_text.delta\ndata: {"type":"response.output_text.delta","delta":"lo"}\n\n'
+        'event: response.completed\ndata: {"type":"response.completed","response":{"status":"completed"}}\n\n'
+    )
+    seen = {}
+
+    def handler(request):
+        seen["body"] = json.loads(request.read())
+        return httpx.Response(200, text=events, headers={"content-type": "text/event-stream"})
+
+    client = make_client(handler)
+    try:
+        assert list(OpenAIProvider(api_key="test", client=client).stream("question")) == ["Hel", "lo"]
+    finally:
+        client.close()
+    assert seen["body"]["stream"] is True
+
+
+def test_stream_rejects_unfinished_and_malformed_events():
+    for body in (
+        'event: response.output_text.delta\ndata: {"delta":"partial"}\n\n',
+        'event: response.output_text.delta\ndata: not-json-secret\n\n',
+    ):
+        client = make_client(lambda request, body=body: httpx.Response(200, text=body))
+        try:
+            with pytest.raises(ProviderError):
+                list(OpenAIProvider(api_key="test", client=client).stream("question"))
+        finally:
+            client.close()
+
+
+def test_closing_openai_stream_closes_http_response():
+    class TrackedStream(httpx.SyncByteStream):
+        closed = False
+
+        def __iter__(self):
+            yield b'event: response.output_text.delta\ndata: {"delta":"part","type":"response.output_text.delta"}\n\n'
+            yield b'event: response.completed\ndata: {"type":"response.completed","response":{"status":"completed"}}\n\n'
+
+        def close(self):
+            self.closed = True
+
+    byte_stream = TrackedStream()
+    client = make_client(lambda request: httpx.Response(200, stream=byte_stream))
+    stream = OpenAIProvider(api_key="test", client=client).stream("question")
+    assert next(stream) == "part"
+    stream.close()
+    assert byte_stream.closed is True
+    client.close()
+
+
+def test_stream_timeout_is_sanitized():
+    client = make_client(lambda request: (_ for _ in ()).throw(httpx.ReadTimeout("private timeout detail")))
+    try:
+        with pytest.raises(ProviderError, match="timed out") as caught:
+            list(OpenAIProvider(api_key="test", client=client).stream("question"))
+    finally:
+        client.close()
+    assert "private timeout detail" not in str(caught.value)

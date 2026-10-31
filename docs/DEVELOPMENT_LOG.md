@@ -2,6 +2,13 @@
 
 A concise record of meaningful project decisions, experiments, and results.
 
+## 2026-10-30 — AI Core 0.5
+
+- **Goal:** Add optional incremental text streaming while retaining the existing provider, conversation storage, Protocol v1, and transport contracts.
+- **Changes:** Added OpenAI Responses SSE streaming, deterministic Mock chunks, bounded conversation streaming with commit-after-completion semantics, and opt-in CLI `--stream`. Output and individual chunks default to 24,000 and 4,096 characters.
+- **Verification:** `.venv\Scripts\python.exe -m pytest -q` from `software/pc-prototype` passed: 124 tests passed and one POSIX-permissions test was skipped on Windows. `python -m nspire_ai.cli --stream smoke` returned the deterministic Mock response. `git diff --check` passed. OpenAI streaming is tested with `httpx.MockTransport`; no live AI API request was made.
+- **Limitations:** The synchronous HTTP read observes configured timeouts; cancellation closes response and iterator resources but cannot promise immediate interruption of every blocked read. Ready for independent code review before publication.
+
 ## 2026-10-30 — AI Core 0.4
 
 - **Goal:** Add durable local conversation storage and safe session management without changing provider, CLI, Protocol v1, or transport contracts.
