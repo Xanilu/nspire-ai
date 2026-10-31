@@ -2,6 +2,13 @@
 
 A concise record of meaningful project decisions, experiments, and results.
 
+## 2026-10-31 — AI Core 0.6
+
+- **Goal:** Add a discoverable, provider-neutral persistent chat to the CLI using the existing conversation engine.
+- **Changes:** Added `nspire-ai --chat` with a guided new/list/resume start prompt, metadata-only saved-chat listing, streamed multi-turn replies, and optional `:help`, `:history`, `:sessions`, and `:quit` shortcuts. Turn failures and interruptions leave prior history intact; the engine is closed on exit. Existing one-shot and `--stream` paths remain unchanged. Documented local plaintext storage and context transmission when OpenAI is selected.
+- **Verification:** Full offline suite passed (148 passed, one POSIX-permissions test skipped on Windows). The 24 CLI tests cover guided creation, list/resume, multiple streamed turns, history/help/quit, invalid IDs and overlong input recovery, failed-turn recovery, interruption and stream cleanup, engine closure, and existing one-shot/`--stream` behavior. A piped mock-provider chat completed and displayed history; 11 local Markdown links resolved; `git diff --check` passed. Independent read-only review found and verified a fix for overlong-input recovery, then reported no remaining actionable findings. No live API calls were made.
+- **Limitations:** Terminal interaction is line-based. Ctrl+C stops the current turn or chat; a blocked synchronous provider read is subject to the configured provider timeout.
+
 ## 2026-10-30 — AI Core 0.5
 
 - **Goal:** Add optional incremental text streaming while retaining the existing provider, conversation storage, Protocol v1, and transport contracts.

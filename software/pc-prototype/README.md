@@ -23,6 +23,7 @@ python -m pip install -e ".[dev]"
 ```powershell
 nspire-ai "Explain what a provider interface is"
 nspire-ai --stream "Explain what a provider interface is"
+nspire-ai --chat
 ```
 
 Configuration is read from environment variables:
@@ -56,6 +57,12 @@ nspire-ai "Explain what a provider interface is"
 
 OpenAI requests use the official Responses API via `httpx`. They may incur API charges and send the selected conversation context to OpenAI. `--stream` requests actual incremental Responses API text deltas. The synchronous adapter uses the configured HTTP timeout and closes its response when the stream finishes or is closed; a blocked synchronous read is not guaranteed to stop immediately. Retries and tools are not implemented.
 
+## Interactive chat
+
+Run `nspire-ai --chat` to open a guided, persistent chat. Press Enter to start a new chat, type `L` to see saved chats, or paste a chat ID to resume it. The list shows IDs, last activity, message and turn counts without showing message text. During chat, type a message normally; `:help`, `:history`, `:sessions`, and `:quit` are optional shortcuts. Completed turns are saved as they finish; an interrupted or failed turn is not added to history. Press Ctrl+C to stop the current turn or Ctrl+D (Ctrl+Z then Enter on Windows) to close the chat. Use `nspire-ai --chat ID` to open a known chat directly.
+
+Conversation history is stored locally as plaintext in the SQLite database described below. When OpenAI is selected, the context retained for that conversation, including prior turns, is sent to OpenAI with each request. The mock provider remains the default. One-shot commands and `--stream` continue to work as before.
+
 ## Conversations
 
 The Python API creates an independent opaque ID for each conversation. Reuse it for later messages and retrieve or delete its retained history:
@@ -87,7 +94,7 @@ The schema is versioned. Startup validates the database and refuses unsupported 
 
 Backup and restore first write a temporary file and then replace or publish it atomically. If the process is interrupted, the requested destination remains absent or unchanged; a hidden `.nspire-ai-backup-*.tmp` or `.nspire-ai-restore-*.tmp` file may remain. After confirming no NSPIRE AI process is using the directory, remove only those incomplete temporary files. Treat them as sensitive conversation data.
 
-The CLI remains one-shot; `--stream` is opt-in. Keyboard interruption returns status 130. Protocol v1 and the stream transport schemas are unchanged. Applications that need multi-turn behavior use the Python conversation API above.
+The CLI supports one-shot requests and an opt-in guided persistent chat; `--stream` remains opt-in for one-shot requests. Keyboard interruption returns status 130. Protocol v1 and the stream transport schemas are unchanged.
 
 ## Testing
 

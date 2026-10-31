@@ -6,7 +6,7 @@ NSPIRE AI explores a practical path to a universal AI assistant with the TI-Nspi
 
 ## Status
 
-The PC prototype is implemented through AI Core 0.5, including optional response streaming and local conversation storage. Protocol v1 and a local stream transport are also implemented. No calculator client, calculator connection, phone integration, or hardware modification is implemented; those remain research and future work.
+The PC prototype is implemented through AI Core 0.6, including guided interactive chat, optional response streaming, and local conversation storage. Protocol v1 and a local stream transport are also implemented. No calculator client, calculator connection, phone integration, or hardware modification is implemented; those remain research and future work.
 
 The eventual connectivity design is unverified. An iPhone hotspot can provide internet to a compatible host, but does not give the calculator network capability by itself. See [architecture](docs/ARCHITECTURE.md) and [hardware research](docs/HARDWARE_RESEARCH.md).
 
@@ -21,10 +21,11 @@ py -3.13 -m venv .venv
 python -m pip install -e ".[dev]"
 nspire-ai "Explain what a provider interface is"
 nspire-ai --stream "Explain what a provider interface is"
+nspire-ai --chat
 python -m pytest
 ```
 
-The mock provider is the default and works offline. OpenAI is optional and requires `OPENAI_API_KEY`; requests send the selected conversation context to the configured service and may incur charges. Configuration, the conversation API, persistence, and privacy limitations are in the [PC prototype guide](software/pc-prototype/README.md).
+The mock provider is the default and works offline. `nspire-ai --chat` opens a guided persistent chat; press Enter for a new chat, type `L` to list saved chats, or paste an ID to resume. OpenAI is optional and requires `OPENAI_API_KEY`; requests send the selected conversation context to the configured service and may incur charges. Conversation history is stored locally as plaintext. Configuration, persistence, and privacy limitations are in the [PC prototype guide](software/pc-prototype/README.md).
 
 ## Project map
 
