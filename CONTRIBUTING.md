@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for your interest in NSPIRE AI.
+Thanks for your interest in NSPIRE AI — **A smarter calculator.**
 
 The project is in an early experimental stage. Before proposing substantial changes:
 
@@ -10,6 +10,6 @@ The project is in an early experimental stage. Before proposing substantial chan
 4. Update documentation when architecture, setup, or limitations change.
 5. Do not commit credentials, API keys, personal data, or device dumps containing sensitive information.
 
-## Development status
+## Development setup
 
-There is no stable public API or release process yet. Compatibility and interfaces may change while the prototype is being developed.
+The project is experimental and has no stable public API or versioned release process. Interfaces may change as the prototype develops. Follow the [PC prototype setup and test instructions](software/pc-prototype/README.md#setup).

@@ -2,7 +2,7 @@
 
 ## Status
 
-The system described here remains a design direction, with the PC foundation implemented under `software/pc-prototype`. AI Core 0.5 adds opt-in synchronous streaming over bounded local SQLite conversations. No calculator connection is implemented.
+The calculator-facing system remains a design direction. The software-first PC foundation is implemented under `software/pc-prototype`; AI Core 0.5 adds opt-in synchronous streaming over bounded local SQLite conversations. No calculator client, phone integration, or external device connection is implemented.
 
 ## Core idea
 

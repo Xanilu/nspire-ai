@@ -2,66 +2,54 @@
 
 **A smarter calculator.**
 
-Bringing modern AI capabilities to the TI-Nspire CX II platform.
+NSPIRE AI explores a practical path to a universal AI assistant with the TI-Nspire CX II-T CAS as a future interface. The project is software-first: model inference is intended to run on a connected host or cloud service, while the calculator would provide input and display.
 
-> NSPIRE AI is an experimental software project exploring how a TI-Nspire CX II can act as a compact interface for a more capable AI system. The calculator is the front end; computation and model inference are intended to run on a connected computer or other external device.
+## Status
 
-## Project status
+The PC prototype is implemented through AI Core 0.5, including optional response streaming and local conversation storage. Protocol v1 and a local stream transport are also implemented. No calculator client, calculator connection, phone integration, or hardware modification is implemented; those remain research and future work.
 
-<em>Early planning / prototype stage.</em>
+The eventual connectivity design is unverified. An iPhone hotspot can provide internet to a compatible host, but does not give the calculator network capability by itself. See [architecture](docs/ARCHITECTURE.md) and [hardware research](docs/HARDWARE_RESEARCH.md).
 
-The repository is being built software-first. No internal hardware modifications are planned until the PC prototype, communication design, and technical constraints have been investigated.
+## Try the PC prototype
 
-## Goals
+Requires Python 3.13 or newer. From the repository root, run in PowerShell:
 
-- Build a clean, modular PC prototype before targeting calculator hardware.
-- Explore a reliable communication layer between the calculator and an external host.
-- Provide a useful assistant workflow for school subjects, including mathematics, physics, German, and English.
-- Keep the architecture documented, testable, and reproducible.
-- Investigate hardware options only after the software approach is validated.
-
-## Planned architecture
-
-```text
-TI-Nspire CX II
-  └── Calculator client (Ndless)
-        └── Communication layer
-              └── External host / phone / PC
-                    └── AI engine
-                          └── Model or cloud AI service
+```powershell
+cd software/pc-prototype
+py -3.13 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+nspire-ai "Explain what a provider interface is"
+nspire-ai --stream "Explain what a provider interface is"
+python -m pytest
 ```
 
-This is a conceptual direction, not a claim that a particular wireless or calculator interface is already supported. The communication method and device capabilities still need to be verified.
+The mock provider is the default and works offline. OpenAI is optional and requires `OPENAI_API_KEY`; requests send the selected conversation context to the configured service and may incur charges. Configuration, the conversation API, persistence, and privacy limitations are in the [PC prototype guide](software/pc-prototype/README.md).
+
+## Project map
+
+- [Roadmap](ROADMAP.md) — completed milestones and planned investigations.
+- [Architecture](docs/ARCHITECTURE.md) — intended components, current implementation, and constraints.
+- [Protocol v1](docs/PROTOCOL_V1.md) — provider- and transport-neutral message format.
+- [Transport Layer 0.1](docs/TRANSPORT_LAYER_V0_1.md) — local blocking stream framing; no network listener or device connector.
+- [Hardware research](docs/HARDWARE_RESEARCH.md) — open feasibility questions and safety constraints.
+- [Development log](docs/DEVELOPMENT_LOG.md) — decisions and verification history.
+- [Changelog](CHANGELOG.md) and [contributing](CONTRIBUTING.md).
 
 ## Repository layout
 
 ```text
-nspire-ai/
-├── docs/                  # Architecture, research, and development notes
-├── software/
-│   ├── pc-prototype/      # First runnable prototype foundation
-│   ├── ai-engine/         # Future AI provider and task orchestration
-│   └── communication/     # Future host-side communication interfaces
-├── calculator/
-│   └── ndless-client/     # Future TI-Nspire client
-└── hardware/
-    └── research/          # Hardware investigation; no build commitment
+docs/                         Architecture, protocol, transport, and research
+software/pc-prototype/        Runnable Python package and tests
 ```
 
-## Development principles
+## Project principles
 
-1. **Software first** — validate the experience on a PC before touching hardware.
-2. **Modular by design** — keep the calculator client, transport, and AI engine separate.
-3. **Document decisions** — record assumptions, tests, and limitations.
-4. **Verify before promising** — distinguish working features from experiments and ideas.
-5. **Keep it practical** — avoid unnecessary purchases and premature complexity.
-
-## Getting started
-
-The PC prototype includes AI Core 0.5: bounded SQLite conversations and opt-in incremental response streaming. The mock provider remains the offline default and OpenAI is optional. Setup and conversation API instructions are in [software/pc-prototype/README.md](software/pc-prototype/README.md).
-
-See [ROADMAP.md](ROADMAP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the current plan.
+- Validate the software experience on a PC before attempting calculator integration.
+- Keep the calculator interface, communication layer, and AI engine replaceable.
+- Record evidence, limitations, and open questions alongside implementation status.
+- Avoid hardware purchases or modifications until feasibility is established.
 
 ## License
 
-No license has been selected yet. All rights are reserved by default; please do not assume the code is licensed for reuse.
+No license has been selected. Do not assume the code is licensed for reuse.

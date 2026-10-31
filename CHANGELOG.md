@@ -2,7 +2,7 @@
 
 All notable project changes will be recorded here.
 
-The project is in its initial planning stage. There are no released versions yet.
+No versioned releases have been published. Milestone notes are listed under Unreleased until the project adopts versioned releases.
 
 ## Unreleased
 

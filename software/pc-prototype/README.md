@@ -1,5 +1,7 @@
 # NSPIRE AI PC prototype
 
+**A smarter calculator.**
+
 AI Core 0.5 adds opt-in incremental text streaming to the provider-neutral conversation engine. The engine factory enables persistence by default; direct `ConversationEngine` construction remains in-memory. The mock provider remains the default.
 
 ## Requirements
@@ -66,7 +68,6 @@ conversation_id = engine.create_conversation()
 reply = engine.send_message(conversation_id, "What is a quadratic equation?")
 for fragment in engine.stream_message(conversation_id, "Show me a simple example."):
     print(fragment, end="", flush=True)
-engine.send_message(conversation_id, "Show me a simple example.")
 history = engine.get_history(conversation_id)
 engine.delete_conversation(conversation_id)
 engine.close()
@@ -88,7 +89,7 @@ Backup and restore first write a temporary file and then replace or publish it a
 
 The CLI remains one-shot; `--stream` is opt-in. Keyboard interruption returns status 130. Protocol v1 and the stream transport schemas are unchanged. Applications that need multi-turn behavior use the Python conversation API above.
 
-## Test
+## Testing
 
 ```powershell
 python -m pytest
